@@ -10,7 +10,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:esp32-micropython.helloWorld"
+    "onCommand:esp32-micropython.helloWorld",
+    "onView:portView"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -19,7 +20,26 @@
         "command": "esp32-micropython.helloWorld",
         "title": "Hello World"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "esp32-micropython",
+          "title": "ESP32 MicroPython",
+          "icon": "$(list-flat)"
+        }
+      ]
+    },
+    "views": {
+      "esp32-micropython": [
+        {
+          "id": "portView",
+          "name": "Port View",
+          "icon": "$(list-flat)",
+          "contextualTitle": "Port View"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

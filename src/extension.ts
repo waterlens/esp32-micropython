@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
-import { SerialPort } from "serialport";
+import { PortProvider } from "./portView";
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -11,12 +11,8 @@ export function activate(context: vscode.ExtensionContext) {
   console.log(
     'Congratulations, your extension "esp32-micropython" is now active!'
   );
-  SerialPort.list().then((ports) =>
-    ports
-      .filter((port) => port.serialNumber !== undefined)
-      .forEach((port) => console.log(port))
-  );
 
+  vscode.window.registerTreeDataProvider('portView', new PortProvider());
   // The command has been defined in the package.json file
   // Now provide the implementation of the command with registerCommand
   // The commandId parameter must match the command field in package.json
