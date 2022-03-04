@@ -7,8 +7,12 @@ export class PortProvider implements vscode.TreeDataProvider<PortItem> {
   readonly onDidChangeTreeData: vscode.Event<PortItem | undefined> =
     this._onDidChangeTreeData.event;
 
-  constructor() {}
-
+  constructor() { }
+  
+  refresh(): void {
+    this._onDidChangeTreeData.fire(undefined);
+  }
+  
   getTreeItem(element: PortItem): vscode.TreeItem {
     return element;
   }

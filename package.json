@@ -15,10 +15,21 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "menus": {
+      "view/title": [
+        {
+          "command": "portView.refreshEntry",
+          "when": "view == portView",
+          "group": "navigation"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "esp32-micropython.helloWorld",
-        "title": "Hello World"
+        "command": "portView.refreshEntry",
+        "title": "Refresh",
+        "icon": "$(refresh)",
+        "category": "Serial Ports"
       }
     ],
     "viewsContainers": {
@@ -34,7 +45,7 @@
       "esp32-micropython": [
         {
           "id": "portView",
-          "name": "Port View",
+          "name": "Port",
           "icon": "$(list-flat)",
           "contextualTitle": "Port View"
         }
