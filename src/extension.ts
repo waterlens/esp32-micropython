@@ -2,9 +2,7 @@ import * as vscode from "vscode";
 import { PortProvider } from "./portView";
 
 export function activate(context: vscode.ExtensionContext) {
-  console.log(
-    'Congratulations, your extension "esp32-micropython" is now active!'
-  );
+  console.log('"esp32-micropython" is now active!');
   const portView = new PortProvider();
   vscode.window.registerTreeDataProvider("portView", portView);
 
