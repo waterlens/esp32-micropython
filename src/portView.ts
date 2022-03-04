@@ -12,7 +12,7 @@ export class PortProvider implements vscode.TreeDataProvider<PortItem> {
   refresh(): void {
     this._onDidChangeTreeData.fire(undefined);
   }
-  
+
   getTreeItem(element: PortItem): vscode.TreeItem {
     return element;
   }
@@ -36,7 +36,7 @@ export class PortItem extends vscode.TreeItem {
   ) {
     super(label, vscode.TreeItemCollapsibleState.None);
 
-    this.tooltip = `${label} ${tooltip}`;
+    this.tooltip = `${label}: ${tooltip}`;
     this.description = desc;
   }
 

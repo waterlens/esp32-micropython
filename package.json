@@ -10,26 +10,32 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:esp32-micropython.helloWorld",
-    "onView:portView"
+    "onView:emp.port",
+    "onCommand:emp.download.esptool"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "menus": {
       "view/title": [
         {
-          "command": "portView.refreshEntry",
-          "when": "view == portView",
+          "command": "emp.port.refresh",
+          "when": "view == emp.port",
           "group": "navigation"
         }
       ]
     },
     "commands": [
       {
-        "command": "portView.refreshEntry",
+        "command": "emp.port.refresh",
         "title": "Refresh",
         "icon": "$(refresh)",
-        "category": "Serial Ports"
+        "category": "ESP32 MicroPython"
+      }
+      ,{
+        "command": "emp.download.esptool",
+        "title": "Download esptool.py",
+        "icon": "$(cloud-download)",
+        "category": "ESP32 MicroPython"
       }
     ],
     "viewsContainers": {
@@ -44,10 +50,10 @@
     "views": {
       "esp32-micropython": [
         {
-          "id": "portView",
+          "id": "emp.port",
           "name": "Port",
           "icon": "$(list-flat)",
-          "contextualTitle": "Port View"
+          "contextualTitle": "Port"
         }
       ]
     }

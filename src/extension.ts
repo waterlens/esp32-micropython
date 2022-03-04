@@ -1,17 +1,24 @@
 import * as vscode from "vscode";
+import { DownloadUtil } from "./downloadUtil";
 import { PortProvider } from "./portView";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('"esp32-micropython" is now active!');
+
   const portView = new PortProvider();
-  vscode.window.registerTreeDataProvider("portView", portView);
+  const downloadUtil = new DownloadUtil();
 
-  let refreshPortView = vscode.commands.registerCommand(
-    "portView.refreshEntry",
-    () => portView.refresh()
+  vscode.window.registerTreeDataProvider("emp.port", portView);
+  context.subscriptions.push(
+    vscode.commands.registerCommand("emp.port.refresh", () =>
+      portView.refresh()
+    )
   );
-
-  context.subscriptions.push(refreshPortView);
+  context.subscriptions.push(
+    vscode.commands.registerCommand("emp.download.esptool", () =>
+      downloadUtil.downloadESPTool()
+    )
+  );
 }
 
 export function deactivate() {}
