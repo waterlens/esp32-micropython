@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { DownloadUtil } from "./downloadUtil";
 import { PortProvider } from "./portView";
+import { launchTerminal, showAvailablePorts } from "./terminal";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('"esp32-micropython" is now active!');
@@ -19,6 +20,13 @@ export function activate(context: vscode.ExtensionContext) {
       downloadUtil.downloadESPTool()
     )
   );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("emp.terminal.launch", () =>
+      launchTerminal()
+    )
+  );
+
 }
 
 export function deactivate() {}

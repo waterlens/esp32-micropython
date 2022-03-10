@@ -11,7 +11,8 @@
   ],
   "activationEvents": [
     "onView:emp.port",
-    "onCommand:emp.download.esptool"
+    "onCommand:emp.download.esptool",
+    "onCommand:emp.terminal.launch"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -35,6 +36,11 @@
         "command": "emp.download.esptool",
         "title": "Download esptool.py",
         "icon": "$(cloud-download)",
+        "category": "ESP32 MicroPython"
+      },
+      {
+        "command": "emp.terminal.launch",
+        "title": "Serial Connect",
         "category": "ESP32 MicroPython"
       }
     ],
