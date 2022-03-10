@@ -18,8 +18,9 @@ export function launchTerminal() {
   showAvailablePorts();
   const parser = new ReadlineParser({ delimiter: "\r\n" });
   const port = new SerialPort({
-    path: "/dev/ttyUSB0",
+    path: "COM4",
     baudRate: 115200,
+    hupcl: false,
   });
   let output = window.createOutputChannel("ESP Terminal");
   port.pipe(parser);
