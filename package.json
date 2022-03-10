@@ -11,7 +11,10 @@
   ],
   "activationEvents": [
     "onView:emp.port",
-    "onCommand:emp.download.esptool"
+    "onCommand:emp.esptool.install",
+    "onCommand:emp.esptool.check",
+    "onCommand:emp.esptool.erase",
+    "onCommand:emp.esptool.flash"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -30,11 +33,29 @@
         "title": "Refresh",
         "icon": "$(refresh)",
         "category": "ESP32 MicroPython"
-      }
-      ,{
-        "command": "emp.download.esptool",
+      },
+      {
+        "command": "emp.esptool.install",
         "title": "Download esptool.py",
         "icon": "$(cloud-download)",
+        "category": "ESP32 MicroPython"
+      },
+      {
+        "command": "emp.esptool.check",
+        "title": "Check esptool.py",
+        "icon": "$(tools)",
+        "category": "ESP32 MicroPython"
+      },
+      {
+        "command": "emp.esptool.erase",
+        "title": "Erase Flash",
+        "icon": "$(circuit-board)",
+        "category": "ESP32 MicroPython"
+      },
+      {
+        "command": "emp.esptool.flash",
+        "title": "Write firmware",
+        "icon": "$(circuit-board)",
         "category": "ESP32 MicroPython"
       }
     ],
@@ -80,6 +101,7 @@
     "typescript": "^4.5.5"
   },
   "dependencies": {
+    "@types/semver": "^7.3.9",
     "serialport": "^10.3.0"
   }
 }
