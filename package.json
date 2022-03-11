@@ -12,6 +12,7 @@
   "activationEvents": [
     "onView:emp.port",
     "onCommand:emp.esptool.install",
+    "onCommand:emp.esptool.uninstall",
     "onCommand:emp.esptool.check",
     "onCommand:emp.esptool.erase",
     "onCommand:emp.esptool.flash"
@@ -36,8 +37,14 @@
       },
       {
         "command": "emp.esptool.install",
-        "title": "Download esptool.py",
+        "title": "Install esptool.py",
         "icon": "$(cloud-download)",
+        "category": "ESP32 MicroPython"
+      },
+      {
+        "command": "emp.esptool.uninstall",
+        "title": "Uninstall esptool.py",
+        "icon": "$(close)",
         "category": "ESP32 MicroPython"
       },
       {

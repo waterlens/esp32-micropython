@@ -15,14 +15,19 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("emp.esptool.install", () => (
+    vscode.commands.registerCommand("emp.esptool.install", () =>
       esptoolWrapper.install()
-    ))
+    )
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("emp.esptool.check", () => (
+    vscode.commands.registerCommand("emp.esptool.uninstall", () =>
+      esptoolWrapper.uninstall()
+    )
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand("emp.esptool.check", () =>
       esptoolWrapper.check()
-    ))
+    )
   );
 }
 
