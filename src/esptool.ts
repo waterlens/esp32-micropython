@@ -1,126 +1,125 @@
-import { exec } from "child_process";
+import { exec, spawn } from "child_process";
 import * as vscode from "vscode";
 import { satisfies } from "semver";
+import { PortUtil } from "./port";
+import { promisify } from "util";
 
 export class ESPToolWrapper {
-  private extPrefix = "ESP32 MicroPython";
-  private consoleLogPrefix = "esptool wrapper ";
-  private pythonName = ["python", "python3", "py"];
+  private static extPrefix = "ESP32 MicroPython";
+  private static consoleLogPrefix = "esptool wrapper ";
+  private static pythonName = ["python", "python3", "py"];
+  private outputChannel = vscode.window.createOutputChannel("ESPTool");
+  private static exec = promisify(exec);
+  private static spawn = promisify(spawn);
 
-  private showInfo(log: string, msg: string) {
+  private static showInfo(log: string, msg: string) {
     console.log(this.consoleLogPrefix + log);
     vscode.window.showInformationMessage(this.newMessageWithExtName(msg));
   }
 
-  private showError(error: string, msg: string) {
+  private static showError(error: string, msg: string) {
     console.error(this.consoleLogPrefix + error);
     vscode.window.showErrorMessage(this.newMessageWithExtName(msg));
   }
 
-  private showWarning(warning: string, msg: string) {
+  private static showWarning(warning: string, msg: string) {
     console.warn(this.consoleLogPrefix + warning);
     vscode.window.showWarningMessage(this.newMessageWithExtName(msg));
   }
 
-  private newMessageWithExtName(message: string): string {
+  private static newMessageWithExtName(message: string): string {
     return `${this.extPrefix}: ${message}`;
   }
 
-  private getESPToolCommand(py: string, arg: string[]): string {
-    return `${py} -m esptool ` + arg.join(" ");
+  private static getESPToolArgs(arg: string[]): string[] {
+    return ["-m", "esptool"].concat(arg);
   }
 
-  private getPipCommand(py: string, arg: string[]): string {
-    return `${py} -m pip ` + arg.join(" ");
+  private static getESPToolCommandArray(py: string, arg: string[]): string[] {
+    return [py].concat(ESPToolWrapper.getESPToolArgs(arg)).concat(arg);
   }
 
-  private checkESPToolInstalled(py: string): Promise<boolean> {
+  private static getPipCommandArray(py: string, arg: string[]): string[] {
+    return [py, "-m", "pip"].concat(arg);
+  }
+
+  private static getESPToolCommand(py: string, arg: string[]): string {
+    return this.getESPToolCommandArray(py, arg).join(" ");
+  }
+
+  private static getPipCommand(py: string, arg: string[]): string {
+    return this.getPipCommandArray(py, arg).join(" ");
+  }
+
+  private async checkESPToolInstalled(py: string) {
     return new Promise((resolve, reject) => {
-      exec(
-        this.getESPToolCommand(py, ["-h"]),
-        (error: any, stdout: string, stderr: string) => {
-          if (error) {
-            resolve(false);
-          } else {
-            resolve(true);
-          }
-        }
-      );
+      ESPToolWrapper.exec(ESPToolWrapper.getESPToolCommand(py, ["-h"]))
+        .then((_) => resolve(true))
+        .catch((_) => resolve(false));
     });
   }
 
-  private async getPythonPrefix(version: string): Promise<string> {
-    const tmp: Promise<string>[] = this.pythonName.map((name) => {
-      return new Promise((resolve, reject) => {
-        exec(
-          `${name} -c "import platform; print(platform.python_version())"`,
-          (error: any, stdout: any, stderr: any) => {
-            if (error || !satisfies(stdout, version)) {
-              console.log(this.consoleLogPrefix + `try ${name} failed`);
-              reject(error);
-            }
-            resolve(name);
+  private async getPythonPrefix(version: string) {
+    const tmp = ESPToolWrapper.pythonName.map((name) =>
+      (async function () {
+        try {
+          const result = await ESPToolWrapper.exec(
+            `${name} -c "import platform; print(platform.python_version())"`
+          );
+          if (satisfies(result.stdout, version)) {
+            return name;
+          } else {
+            throw new Error("python version not satisfied");
           }
-        );
-      });
-    });
+        } catch (_) {
+          throw _;
+        }
+      })()
+    );
     const availablePythonName = await Promise.any(tmp);
     console.log(
-      this.consoleLogPrefix + `available python is ${availablePythonName}`
+      ESPToolWrapper.consoleLogPrefix +
+        `available python is ${availablePythonName}`
     );
     return availablePythonName;
   }
 
-  private async checkPython(cb: (value: string) => void) {
-    const isPythonInstalled = this.getPythonPrefix("3.x");
-    isPythonInstalled.then(cb);
-    isPythonInstalled.catch((error) => {
-      this.showError("python not found", "please install Python 3.x.");
-    });
+  private async checkPython() {
+    try {
+      return this.getPythonPrefix("3.x");
+    } catch (error) {
+      ESPToolWrapper.showError(
+        "python not found",
+        "Please install Python 3.x."
+      );
+      throw error;
+    }
   }
 
-  async check() {
-    const cb = (prefix: string) => {
-      this.checkESPToolInstalled(prefix).then((installed) => {
-        if (installed) {
-          this.showInfo(
+  async check(silent?: boolean) {
+    try {
+      const pyPrefix = await this.checkPython();
+      const installed = await this.checkESPToolInstalled(pyPrefix);
+      if (installed) {
+        if (!(silent && silent === true)) {
+          ESPToolWrapper.showInfo(
             "esptool.py has been installed",
             "esptool.py has been installed."
           );
-        } else {
-          this.showWarning(
-            "esptool.py has not been installed",
-            "esptool.py has not been installed."
-          );
         }
-      });
-    };
-    this.checkPython(cb);
+      } else {
+        ESPToolWrapper.showWarning(
+          "esptool.py has not been installed",
+          "esptool.py has not been installed."
+        );
+      }
+      return installed;
+    } catch (error) {
+      return false;
+    }
   }
 
   async install() {
-    const cb = (prefix: string) => {
-      this.checkESPToolInstalled(prefix).then((installed) => {
-        if (!installed) {
-          exec(
-            this.getPipCommand(prefix, ["install", "esptool"]),
-            (error: any, stdout: string, stderr: string) => {
-              if (error) {
-                this.showError(
-                  "can't install esptool.py",
-                  "can't install esptool.py: " + stderr
-                );
-              } else {
-                this.showInfo(
-                  "install esptool.py success",
-                  "install esptool.py success."
-                );
-              }
-            }
-          );
-        }
-      });
-    };
     vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
@@ -128,38 +127,31 @@ export class ESPToolWrapper {
         cancellable: false,
       },
       async (progress, token) => {
-        await this.checkPython(cb);
+        const pyPrefix = await this.checkPython();
+        const installed = await this.checkESPToolInstalled(pyPrefix);
+        if (!installed) {
+          try {
+            await ESPToolWrapper.exec(
+              ESPToolWrapper.getPipCommand(pyPrefix, ["install", "esptool"])
+            );
+            ESPToolWrapper.showInfo(
+              "install esptool.py success",
+              "Install esptool.py success."
+            );
+          } catch (error) {
+            ESPToolWrapper.showError(
+              "can't install esptool.py",
+              "Can't install esptool.py: " + error
+            );
+          }
+        }
         progress.report({ increment: 100 });
-        return new Promise<void>((resolve, reject) => {
-          resolve();
-        });
+        return;
       }
     );
   }
 
   async uninstall() {
-    const cb = (prefix: string) => {
-      this.checkESPToolInstalled(prefix).then((installed) => {
-        if (installed) {
-          exec(
-            this.getPipCommand(prefix, ["uninstall", "esptool", "-y"]),
-            (error: any, stdout: string, stderr: string) => {
-              if (error) {
-                this.showError(
-                  "can't uninstall esptool.py",
-                  "can't uninstall esptool.py: " + stderr
-                );
-              } else {
-                this.showInfo(
-                  "uninstall esptool.py success",
-                  "uninstall esptool.py success."
-                );
-              }
-            }
-          );
-        }
-      });
-    };
     vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
@@ -167,15 +159,97 @@ export class ESPToolWrapper {
         cancellable: false,
       },
       async (progress, token) => {
-        await this.checkPython(cb);
+        const pyPrefix = await this.checkPython();
+        const installed = await this.checkESPToolInstalled(pyPrefix);
+        if (installed) {
+          try {
+            await ESPToolWrapper.exec(
+              ESPToolWrapper.getPipCommand(pyPrefix, [
+                "uninstall",
+                "esptool",
+                "-y",
+              ])
+            );
+            ESPToolWrapper.showInfo(
+              "uninstall esptool.py success",
+              "Uninstall esptool.py success."
+            );
+          } catch (error) {
+            ESPToolWrapper.showError(
+              "can't uninstall esptool.py",
+              "Can't uninstall esptool.py: " + error
+            );
+          }
+        }
         progress.report({ increment: 100 });
-        return new Promise<void>((resolve, reject) => {
-          resolve();
-        });
+        return;
       }
     );
   }
 
-  flash(path: string, firmware: string) {}
-  erase(path: string) {}
+  private portPick() {
+    return vscode.window.showQuickPick(PortUtil.listAsStringArray());
+  }
+
+  flash(port?: string, firmware?: string) {}
+  async erase(port?: string) {
+    const selected = port || (await this.portPick());
+    if (!selected) {
+      ESPToolWrapper.showError("no port selected", "No port selected.");
+      return;
+    }
+
+    const pyPrefix = await this.getPythonPrefix("3.x");
+    const installed = await this.check(true);
+    if (!installed) {
+      return;
+    }
+
+    vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Window,
+        cancellable: false,
+        title: `Erasing ${selected}...`,
+      },
+      async (progress, token) => {
+        return new Promise<void>((resolve, reject) => {
+          this.outputChannel.clear();
+          this.outputChannel.show();
+
+          console.log("erase esp32 on port " + selected);
+          const esptool = spawn(
+            pyPrefix,
+            ESPToolWrapper.getESPToolArgs([
+              "--chip",
+              "esp32",
+              "--port",
+              selected,
+              "erase_flash",
+            ]),
+            { windowsHide: true }
+          )
+            .on("error", (error) => {
+              ESPToolWrapper.showError("esptool.py error", error.toString());
+            })
+            .on("exit", () => {
+              ESPToolWrapper.showInfo(
+                "erase esp32 success",
+                "Operation done successfully."
+              );
+              progress.report({ increment: 100, message: "Erasing done" });
+              resolve();
+            });
+
+          esptool.stdout.on("data", (data) => {
+            this.outputChannel.append(data.toString());
+            console.log(data);
+          });
+          esptool.stderr.on("data", (data) => {
+            this.outputChannel.append(data.toString());
+            console.log(data);
+          });
+        });
+      }
+    );
+  }
 }

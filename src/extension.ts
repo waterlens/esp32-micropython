@@ -29,6 +29,11 @@ export function activate(context: vscode.ExtensionContext) {
       esptoolWrapper.check()
     )
   );
+  context.subscriptions.push(
+    vscode.commands.registerCommand("emp.esptool.erase", () =>
+      esptoolWrapper.erase()
+    )
+  );
 }
 
 export function deactivate() {}
