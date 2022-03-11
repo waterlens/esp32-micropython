@@ -191,7 +191,97 @@ export class ESPToolWrapper {
     return vscode.window.showQuickPick(PortUtil.listAsStringArray());
   }
 
-  flash(port?: string, firmware?: string) {}
+  private firmwarePick() {
+    const options: vscode.OpenDialogOptions = {
+      canSelectMany: false,
+      openLabel: "Select a firmware file",
+      canSelectFiles: true,
+      canSelectFolders: false,
+    };
+    return vscode.window.showOpenDialog(options);
+  }
+
+  async program(port?: string, firmware?: string) {
+    const selected = port || (await this.portPick());
+    if (!selected) {
+      ESPToolWrapper.showError("no port selected", "No port selected.");
+      return;
+    }
+
+    let path: string;
+    if (!firmware) {
+      let picked = await this.firmwarePick();
+      if (!picked || picked.length === 0) {
+        ESPToolWrapper.showError(
+          "no firmware selected",
+          "No firmware selected."
+        );
+        return;
+      }
+      path = picked[0].fsPath;
+    } else {
+      path = firmware!;
+    }
+
+    const pyPrefix = await this.getPythonPrefix("3.x");
+    const installed = await this.check(true);
+    if (!installed) {
+      return;
+    }
+
+    vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Window,
+        cancellable: false,
+        title: `Programing ${selected} ...`,
+      },
+      async (progress, token) => {
+        return new Promise<void>((resolve, reject) => {
+          this.outputChannel.clear();
+          this.outputChannel.show();
+
+          console.log("program esp32 on port " + selected);
+          const esptool = spawn(
+            pyPrefix,
+            ESPToolWrapper.getESPToolArgs([
+              "--chip",
+              "esp32",
+              "--port",
+              selected,
+              "--baud",
+              "460800",
+              "write_flash",
+              "-z",
+              "0x1000",
+              path,
+            ]),
+            { windowsHide: true }
+          )
+            .on("error", (error) => {
+              ESPToolWrapper.showError("esptool.py error", error.toString());
+            })
+            .on("exit", () => {
+              ESPToolWrapper.showInfo(
+                "program esp32 success",
+                "Operation done successfully."
+              );
+              progress.report({ increment: 100, message: "Program done" });
+              resolve();
+            });
+
+          esptool.stdout.on("data", (data) => {
+            this.outputChannel.append(data.toString());
+            console.log(data);
+          });
+          esptool.stderr.on("data", (data) => {
+            this.outputChannel.append(data.toString());
+            console.log(data);
+          });
+        });
+      }
+    );
+  }
+
   async erase(port?: string) {
     const selected = port || (await this.portPick());
     if (!selected) {
@@ -209,7 +299,7 @@ export class ESPToolWrapper {
       {
         location: vscode.ProgressLocation.Window,
         cancellable: false,
-        title: `Erasing ${selected}...`,
+        title: `Erasing ${selected} ...`,
       },
       async (progress, token) => {
         return new Promise<void>((resolve, reject) => {

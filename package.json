@@ -15,7 +15,7 @@
     "onCommand:emp.esptool.uninstall",
     "onCommand:emp.esptool.check",
     "onCommand:emp.esptool.erase",
-    "onCommand:emp.esptool.flash"
+    "onCommand:emp.esptool.program"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -60,8 +60,8 @@
         "category": "ESP32 MicroPython"
       },
       {
-        "command": "emp.esptool.flash",
-        "title": "Write firmware",
+        "command": "emp.esptool.program",
+        "title": "Program firmware",
         "icon": "$(circuit-board)",
         "category": "ESP32 MicroPython"
       }
