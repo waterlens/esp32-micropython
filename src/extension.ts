@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { PortProvider } from "./portView";
+import { PortItem, PortProvider } from "./portView";
 import { ESPToolWrapper } from "./esptool";
 
 export function activate(context: vscode.ExtensionContext) {
@@ -30,13 +30,13 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("emp.esptool.erase", () =>
-      esptoolWrapper.erase()
+    vscode.commands.registerCommand("emp.esptool.erase", (item?: PortItem) =>
+      item ? esptoolWrapper.erase(item.label) : esptoolWrapper.erase()
     )
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("emp.esptool.program", () =>
-      esptoolWrapper.program()
+    vscode.commands.registerCommand("emp.esptool.program", (item?: PortItem) =>
+      item ? esptoolWrapper.program(item.label) : esptoolWrapper.program()
     )
   );
 }

@@ -26,6 +26,26 @@
           "when": "view == emp.port",
           "group": "navigation"
         }
+      ],
+      "view/item/context": [
+        {
+          "command": "emp.esptool.erase",
+          "when": "view == emp.port",
+          "group": "inline"
+        },
+        {
+          "command": "emp.esptool.erase",
+          "when": "view == emp.port"
+        },
+        {
+          "command": "emp.esptool.program",
+          "when": "view == emp.port",
+          "group": "inline"
+        },
+        {
+          "command": "emp.esptool.program",
+          "when": "view == emp.port"
+        }
       ]
     },
     "commands": [
@@ -55,7 +75,7 @@
       },
       {
         "command": "emp.esptool.erase",
-        "title": "Erase Flash",
+        "title": "Erase flash",
         "icon": "$(circuit-board)",
         "category": "ESP32 MicroPython"
       },

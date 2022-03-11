@@ -5,12 +5,12 @@ import { PortUtil } from "./port";
 import { promisify } from "util";
 
 export class ESPToolWrapper {
-  private static extPrefix = "ESP32 MicroPython";
-  private static consoleLogPrefix = "esptool wrapper ";
-  private static pythonName = ["python", "python3", "py"];
-  private outputChannel = vscode.window.createOutputChannel("ESPTool");
-  private static exec = promisify(exec);
-  private static spawn = promisify(spawn);
+  private static readonly extPrefix = "ESP32 MicroPython";
+  private static readonly consoleLogPrefix = "esptool wrapper ";
+  private static readonly pythonName = ["python", "python3", "py"];
+  private static readonly exec = promisify(exec);
+  private static readonly spawn = promisify(spawn);
+  private readonly outputChannel = vscode.window.createOutputChannel("ESPTool");
 
   private static showInfo(log: string, msg: string) {
     console.log(this.consoleLogPrefix + log);
