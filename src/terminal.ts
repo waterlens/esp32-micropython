@@ -18,6 +18,8 @@ export function showAvailablePorts() {
   portList.then((ports) => console.log(ports));
 }
 
+let terminalMap = new Map();
+
 export class EmpTerminal implements vscode.Pseudoterminal {
 	private writeEmitter = new vscode.EventEmitter<string>();
 	onDidWrite: vscode.Event<string> = this.writeEmitter.event;
@@ -30,6 +32,7 @@ export class EmpTerminal implements vscode.Pseudoterminal {
 	private port;
 	private parser;
 	private portMap;
+	private portPath;
 
 	handleInput(data: string): void {
 		this.port?.write(data);
@@ -37,6 +40,7 @@ export class EmpTerminal implements vscode.Pseudoterminal {
 
 	constructor(portMap: Map<string, SerialPort>, portPath: string) {
 		this.portMap = portMap;
+		this.portPath = portPath;
 
 		this.port = portMap.get(portPath);
 		// this.parser = new ReadlineParser({ delimiter: "\r\n" });
@@ -59,28 +63,14 @@ export class EmpTerminal implements vscode.Pseudoterminal {
 
 	open(initialDimensions: vscode.TerminalDimensions | undefined): void {
 
-
-		const portList = SerialPort.list();
-		let pathName = "";
-		portList.then((ports) => {
-			if (ports.length > 1) {
-				this.writeEmitter.fire("Please select");
-				for (let port of ports) {
-					this.writeEmitter.fire(port.path);
-				}
-			} else {
-
-			}
-		});
-		console.log('it is open');
 	}
 
 	close(): void {
-
+		// this.portMap.delete(this.portPath);
+		terminalMap.delete(this.portPath);
 	}
 }
 
-let terminalMap = new Map();
 
 export class TerminalWrapper {
 	terminal;
