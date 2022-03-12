@@ -45,6 +45,11 @@ export class EmpTerminal implements vscode.Pseudoterminal {
 		this.port = portMap.get(portPath);
 		// this.parser = new ReadlineParser({ delimiter: "\r\n" });
 		this.parser = new ByteLengthParser({length: 1});
+		this.port?.on("close", () => {
+			terminalMap.delete(portPath);
+			this.writeEmitter.fire("\r\n**Error: Connection Expired**\r\nPlease close current terminal.");
+		});
+
 		this.port?.pipe(this.parser);
 
 
@@ -117,11 +122,18 @@ export function pickPort(portMap: Map<string, SerialPort>) {
 			let portPath = selection[0].label;
 			quickPick.dispose();
 			if (!portMap.has(portPath)) {
-				portMap.set(portPath, new SerialPort({
+				let port = new SerialPort({
 					path: portPath,
 					baudRate: 115200,
 					hupcl: false,
-				}));
+				});
+
+				port.on("close", () => {
+					vscode.window.showErrorMessage(portPath + " is disconnected!");
+					portMap.delete(portPath);
+				});
+
+				portMap.set(portPath, port);
 			}
 			new TerminalWrapper(portMap, portPath).show();
 
