@@ -48,7 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
       // new WebTerminal('192.168.137.167', '810975');
       // new WebTerminal('192.168.137.135', '810975');
       const micropython = new MicroPythonDevice();
-      await micropython.connectNetwork('192.168.137.135', '810975');
+      await micropython.connectNetwork('192.168.219.173', '810975', 5);
       const output = await micropython.runScript('print("hello world")');
       console.log('runScript output: ', output);
     })
