@@ -1,7 +1,10 @@
+import { MicroPythonDevice } from "micropython-ctl";
 import * as vscode from "vscode";
 import { DownloadUtil } from "./downloadUtil";
 import { PortProvider } from "./portView";
 import { TerminalWrapper, pickPort } from "./terminal";
+import { WebTerminal } from "./webTerminal";
+// import { MicroPythonDevice } from "micropython-ctl";
 // import { CustomBuildTaskProvider } from "./terminal";
 
 
@@ -38,6 +41,17 @@ export function activate(context: vscode.ExtensionContext) {
         console.log(portMap);
       }
     )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("emp.terminal.webrepl", async () => {
+      // new WebTerminal('192.168.137.167', '810975');
+      // new WebTerminal('192.168.137.135', '810975');
+      const micropython = new MicroPythonDevice();
+      await micropython.connectNetwork('192.168.137.135', '810975');
+      const output = await micropython.runScript('print("hello world")');
+      console.log('runScript output: ', output);
+    })
   );
 
 }
