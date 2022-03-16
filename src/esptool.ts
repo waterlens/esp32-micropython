@@ -3,120 +3,18 @@ import * as vscode from "vscode";
 import { satisfies } from "semver";
 import { PortUtil } from "./port";
 import { promisify } from "util";
+import { Message } from "./message";
+import { ExternalCommand } from "./externalCmd";
 
 export class ESPToolWrapper {
-  private static readonly extPrefix = "ESP32 MicroPython";
-  private static readonly consoleLogPrefix = "esptool wrapper ";
-  private static readonly pythonName = ["python", "python3", "py"];
   private static readonly exec = promisify(exec);
   private static readonly spawn = promisify(spawn);
   private readonly outputChannel = vscode.window.createOutputChannel("ESPTool");
+  private static readonly message = new Message("esptool wrapper");
+  private static readonly cmd = new ExternalCommand(this.message);
 
-  private static showInfo(log: string, msg: string) {
-    console.log(this.consoleLogPrefix + log);
-    vscode.window.showInformationMessage(this.newMessageWithExtName(msg));
-  }
-
-  private static showError(error: string, msg: string) {
-    console.error(this.consoleLogPrefix + error);
-    vscode.window.showErrorMessage(this.newMessageWithExtName(msg));
-  }
-
-  private static showWarning(warning: string, msg: string) {
-    console.warn(this.consoleLogPrefix + warning);
-    vscode.window.showWarningMessage(this.newMessageWithExtName(msg));
-  }
-
-  private static newMessageWithExtName(message: string): string {
-    return `${this.extPrefix}: ${message}`;
-  }
-
-  private static getESPToolArgs(arg: string[]): string[] {
-    return ["-m", "esptool"].concat(arg);
-  }
-
-  private static getESPToolCommandArray(py: string, arg: string[]): string[] {
-    return [py].concat(ESPToolWrapper.getESPToolArgs(arg)).concat(arg);
-  }
-
-  private static getPipCommandArray(py: string, arg: string[]): string[] {
-    return [py, "-m", "pip"].concat(arg);
-  }
-
-  private static getESPToolCommand(py: string, arg: string[]): string {
-    return this.getESPToolCommandArray(py, arg).join(" ");
-  }
-
-  private static getPipCommand(py: string, arg: string[]): string {
-    return this.getPipCommandArray(py, arg).join(" ");
-  }
-
-  private async checkESPToolInstalled(py: string) {
-    return new Promise((resolve, reject) => {
-      ESPToolWrapper.exec(ESPToolWrapper.getESPToolCommand(py, ["-h"]))
-        .then((_) => resolve(true))
-        .catch((_) => resolve(false));
-    });
-  }
-
-  private async getPythonPrefix(version: string) {
-    const tmp = ESPToolWrapper.pythonName.map((name) =>
-      (async function () {
-        try {
-          const result = await ESPToolWrapper.exec(
-            `${name} -c "import platform; print(platform.python_version())"`
-          );
-          if (satisfies(result.stdout, version)) {
-            return name;
-          } else {
-            throw new Error("python version not satisfied");
-          }
-        } catch (_) {
-          throw _;
-        }
-      })()
-    );
-    const availablePythonName = await Promise.any(tmp);
-    console.log(
-      ESPToolWrapper.consoleLogPrefix +
-        `available python is ${availablePythonName}`
-    );
-    return availablePythonName;
-  }
-
-  private async checkPython() {
-    try {
-      return this.getPythonPrefix("3.x");
-    } catch (error) {
-      ESPToolWrapper.showError(
-        "python not found",
-        "Please install Python 3.x."
-      );
-      throw error;
-    }
-  }
-
-  async check(silent?: boolean) {
-    try {
-      const pyPrefix = await this.checkPython();
-      const installed = await this.checkESPToolInstalled(pyPrefix);
-      if (installed) {
-        if (!(silent && silent === true)) {
-          ESPToolWrapper.showInfo(
-            "esptool.py has been installed",
-            "esptool.py has been installed."
-          );
-        }
-      } else {
-        ESPToolWrapper.showWarning(
-          "esptool.py has not been installed",
-          "esptool.py has not been installed."
-        );
-      }
-      return installed;
-    } catch (error) {
-      return false;
-    }
+  async check() {
+    return ESPToolWrapper.cmd.checkAndPrompt("esptool");
   }
 
   async install() {
@@ -127,19 +25,25 @@ export class ESPToolWrapper {
         cancellable: false,
       },
       async (progress, token) => {
-        const pyPrefix = await this.checkPython();
-        const installed = await this.checkESPToolInstalled(pyPrefix);
+        const pyPrefix = await ESPToolWrapper.cmd.checkPython();
+        const installed = await ExternalCommand.checkPythonModuleInstalled(
+          pyPrefix,
+          "esptool"
+        );
         if (!installed) {
           try {
             await ESPToolWrapper.exec(
-              ESPToolWrapper.getPipCommand(pyPrefix, ["install", "esptool"])
+              ExternalCommand.getFullCommandString(pyPrefix, "pip", [
+                "install",
+                "esptool",
+              ])
             );
-            ESPToolWrapper.showInfo(
+            ESPToolWrapper.message.showInfo(
               "install esptool.py success",
               "Install esptool.py success."
             );
           } catch (error) {
-            ESPToolWrapper.showError(
+            ESPToolWrapper.message.showError(
               "can't install esptool.py",
               "Can't install esptool.py: " + error
             );
@@ -159,23 +63,26 @@ export class ESPToolWrapper {
         cancellable: false,
       },
       async (progress, token) => {
-        const pyPrefix = await this.checkPython();
-        const installed = await this.checkESPToolInstalled(pyPrefix);
+        const pyPrefix = await ESPToolWrapper.cmd.checkPython();
+        const installed = await ExternalCommand.checkPythonModuleInstalled(
+          pyPrefix,
+          "esptool"
+        );
         if (installed) {
           try {
             await ESPToolWrapper.exec(
-              ESPToolWrapper.getPipCommand(pyPrefix, [
+              ExternalCommand.getFullCommandString(pyPrefix, "pip", [
                 "uninstall",
                 "esptool",
                 "-y",
               ])
             );
-            ESPToolWrapper.showInfo(
+            ESPToolWrapper.message.showInfo(
               "uninstall esptool.py success",
               "Uninstall esptool.py success."
             );
           } catch (error) {
-            ESPToolWrapper.showError(
+            ESPToolWrapper.message.showError(
               "can't uninstall esptool.py",
               "Can't uninstall esptool.py: " + error
             );
@@ -204,7 +111,7 @@ export class ESPToolWrapper {
   async program(port?: string, firmware?: string) {
     const selected = port || (await this.portPick());
     if (!selected) {
-      ESPToolWrapper.showError("no port selected", "No port selected.");
+      ESPToolWrapper.message.showError("no port selected", "No port selected.");
       return;
     }
 
@@ -212,7 +119,7 @@ export class ESPToolWrapper {
     if (!firmware) {
       let picked = await this.firmwarePick();
       if (!picked || picked.length === 0) {
-        ESPToolWrapper.showError(
+        ESPToolWrapper.message.showError(
           "no firmware selected",
           "No firmware selected."
         );
@@ -223,8 +130,8 @@ export class ESPToolWrapper {
       path = firmware!;
     }
 
-    const pyPrefix = await this.getPythonPrefix("3.x");
-    const installed = await this.check(true);
+    const pyPrefix = await ESPToolWrapper.cmd.getPythonPrefix("3.x");
+    const installed = await ESPToolWrapper.cmd.checkAndPrompt("esptool", true);
     if (!installed) {
       return;
     }
@@ -243,7 +150,7 @@ export class ESPToolWrapper {
           console.log("program esp32 on port " + selected);
           const esptool = spawn(
             pyPrefix,
-            ESPToolWrapper.getESPToolArgs([
+            ExternalCommand.getPythonModuleOptions("esptool", [
               "--chip",
               "esp32",
               "--port",
@@ -258,14 +165,17 @@ export class ESPToolWrapper {
             { windowsHide: true }
           )
             .on("error", (error) => {
-              ESPToolWrapper.showError("esptool.py error", error.toString());
+              ESPToolWrapper.message.showError(
+                "esptool.py error",
+                error.toString()
+              );
             })
             .on("exit", () => {
-              ESPToolWrapper.showInfo(
+              ESPToolWrapper.message.showInfo(
                 "program esp32 success",
                 "Operation done successfully."
               );
-              progress.report({ increment: 100, message: "Program done" });
+              progress.report({ increment: 100, message: "Programming done" });
               resolve();
             });
 
@@ -285,12 +195,12 @@ export class ESPToolWrapper {
   async erase(port?: string) {
     const selected = port || (await this.portPick());
     if (!selected) {
-      ESPToolWrapper.showError("no port selected", "No port selected.");
+      ESPToolWrapper.message.showError("no port selected", "No port selected.");
       return;
     }
 
-    const pyPrefix = await this.getPythonPrefix("3.x");
-    const installed = await this.check(true);
+    const pyPrefix = await ESPToolWrapper.cmd.getPythonPrefix("3.x");
+    const installed = await ESPToolWrapper.cmd.checkAndPrompt("esptool", true);
     if (!installed) {
       return;
     }
@@ -309,7 +219,7 @@ export class ESPToolWrapper {
           console.log("erase esp32 on port " + selected);
           const esptool = spawn(
             pyPrefix,
-            ESPToolWrapper.getESPToolArgs([
+            ExternalCommand.getPythonModuleOptions("esptool", [
               "--chip",
               "esp32",
               "--port",
@@ -319,10 +229,13 @@ export class ESPToolWrapper {
             { windowsHide: true }
           )
             .on("error", (error) => {
-              ESPToolWrapper.showError("esptool.py error", error.toString());
+              ESPToolWrapper.message.showError(
+                "esptool.py error",
+                error.toString()
+              );
             })
             .on("exit", () => {
-              ESPToolWrapper.showInfo(
+              ESPToolWrapper.message.showInfo(
                 "erase esp32 success",
                 "Operation done successfully."
               );
