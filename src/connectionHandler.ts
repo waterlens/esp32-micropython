@@ -1,6 +1,7 @@
 import { MicroPythonDevice } from "micropython-ctl";
 import * as vscode from 'vscode';
 import { SerialPort } from "serialport";
+import { EmpTerminal } from "./terminal";
 
 export enum DeviceType {
     webDevice,
@@ -10,15 +11,100 @@ export enum DeviceType {
 export class DeviceId {
     deviceType: DeviceType;
     devicePath: string; 
+    // password: string = "__invalid__";
 
     constructor(type: DeviceType, path: string) {
         this.devicePath = path;
         this.deviceType = type;
+        // if (password) {
+        //     this.password = password;
+        // }
     }
 }
 
+export interface EmpDevice {
+    onTerminalData: (data: string) => void;
+    sendData(data: string): void;
+    linkedTerminals: Array<EmpTerminal>;
+    attachTerminal(terminal: EmpTerminal): void;
+    detachTerminal(terminal: EmpTerminal): void;
+}
+
+export class SerialDevice implements EmpDevice {
+    onTerminalData = (data: string) => {
+        console.log(data);
+        console.log(this.linkedTerminals.length);
+        for (let i of this.linkedTerminals) {
+            i.writeEmitter.fire(data);
+        }
+    }; 
+
+    private serialPort: SerialPort;
+    linkedTerminals = new Array();
+
+    constructor(portPath: string) {
+        // this.serialPort = serialPort;
+        this.serialPort = new SerialPort({
+            path: portPath,
+            baudRate: 115200,
+            hupcl: false,
+        });
+
+        this.serialPort.on("data", (data) => {
+            this.onTerminalData(data.toString());
+        });
+    }
+
+
+    sendData(data: string): void {
+        this.serialPort.write(data);
+    }
+
+    attachTerminal(terminal: EmpTerminal): void {
+        this.linkedTerminals.push(terminal);
+    }
+
+    detachTerminal(terminal: EmpTerminal): void {
+        for (let i = 0; i < this.linkedTerminals.length; i++) {
+            if (this.linkedTerminals[i] === terminal) {
+                this.linkedTerminals.splice(i, 1);
+                break;
+            }
+        }
+    }
+}
+
+export class WebDevice extends MicroPythonDevice implements EmpDevice {
+    linkedTerminals: Array<EmpTerminal>;
+
+    constructor() {
+        super();
+        this.linkedTerminals = new Array();
+        this.onTerminalData = (data: string) => {
+            for (let i of this.linkedTerminals) {
+                i.writeEmitter.fire(data);
+            }
+        }; 
+    }
+
+    attachTerminal(terminal: EmpTerminal): void {
+        this.linkedTerminals.push(terminal);
+    }
+
+    detachTerminal(terminal: EmpTerminal): void {
+        for (let i = 0; i < this.linkedTerminals.length; i++) {
+            if (this.linkedTerminals[i] === terminal) {
+                this.linkedTerminals.splice(i, 1);
+                break;
+            }
+        }
+    }
+
+}
+
 export class ConnectionHandler {
-    private deviceMap: Map<DeviceId, MicroPythonDevice> = new Map();
+    private deviceMap: Map<DeviceId, EmpDevice> = new Map();
+    // private countMap: Map<DeviceId, number> = new Map();
 
     constructor() {
 
@@ -28,25 +114,22 @@ export class ConnectionHandler {
         return [...this.deviceMap.keys()];
     }
 
-    peekDevice(deviceId: DeviceId): MicroPythonDevice | undefined {
+    peekDevice(deviceId: DeviceId): EmpDevice | undefined {
         return this.deviceMap.get(deviceId);
     }
 
-    async takeDevice(deviceId: DeviceId): Promise<MicroPythonDevice> {
+    async takeDevice(deviceId: DeviceId): Promise<EmpDevice> {
         let ret = this.peekDevice(deviceId);
         if (ret === undefined) {
             if (deviceId.deviceType === DeviceType.serialDevice) {
-                ret = new MicroPythonDevice();
-                console.log(deviceId.devicePath);
-                await ret.connectSerial(deviceId.devicePath);
+                ret = new SerialDevice(deviceId.devicePath);
                 this.deviceMap.set(deviceId, ret);
             } else {
-                ret = new MicroPythonDevice();
+                let temp = new WebDevice();
                 let password = await getPassword();
-                console.log(deviceId.devicePath);
-                console.log(password);
-                await ret.connectNetwork(deviceId.devicePath, password);
-                this.deviceMap.set(deviceId, ret);
+                temp.connectNetwork(deviceId.devicePath, password);
+                this.deviceMap.set(deviceId, temp);
+                ret = temp;
             }
         }
        return ret;
