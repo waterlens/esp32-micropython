@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import { DownloadUtil } from "./downloadUtil";
 import { PortProvider } from "./portView";
 import { ConnectionHandler, getIpAddr, DeviceType, DeviceId, getSerialPort } from "./connectionHandler";
-import { EmpTerminal } from "./terminal";
+import { EmpTerminal, TerminalHandler } from "./terminal";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('"esp32-micropython" is now active!');
@@ -13,6 +13,7 @@ export function activate(context: vscode.ExtensionContext) {
   const portView = new PortProvider();
   const downloadUtil = new DownloadUtil();
   const connectionHandler = new ConnectionHandler();
+  const terminalHandler = new TerminalHandler();
 
   vscode.window.registerTreeDataProvider("emp.port", portView);
   context.subscriptions.push(
@@ -30,27 +31,21 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("emp.terminal.launch", async () => {
       let serialPortNumber = await getSerialPort();
       console.log(serialPortNumber);
-      let device = await connectionHandler.takeDevice({deviceType: DeviceType.serialDevice, devicePath: serialPortNumber});
-      let terminal: vscode.Pseudoterminal = new EmpTerminal(device);
-      let terminalWrapper = vscode.window.createTerminal({
-        name: "Serial: " + serialPortNumber,
-        pty: terminal,
-      });
-      terminalWrapper.show();
+      let deviceId = new DeviceId(DeviceType.serialDevice, serialPortNumber);
+      let device = await connectionHandler.takeDevice(deviceId);
+      let terminal = terminalHandler.getTerminal(deviceId, device);
+      terminal.show();
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("emp.terminal.webrepl", async () => {
       let ipAddr = await getIpAddr();
+      let deviceId = new DeviceId(DeviceType.webDevice, ipAddr);
       console.log(ipAddr);
-      let device = await connectionHandler.takeDevice(new DeviceId(DeviceType.webDevice, ipAddr));
-      let terminal: vscode.Pseudoterminal = new EmpTerminal(device);
-      let terminalWrapper = vscode.window.createTerminal({
-        name: "ws://" + ipAddr + ":8266",
-        pty: terminal,
-      });
-      terminalWrapper.show();
+      let device = await connectionHandler.takeDevice(deviceId);
+      let terminal = terminalHandler.getTerminal(deviceId, device);
+      terminal.show();
     })
   );
 
