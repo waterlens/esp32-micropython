@@ -1,143 +1,63 @@
 import { SerialPort } from "serialport";
-import { ReadlineParser } from "@serialport/parser-readline";
-import { SerialPortStream } from "@serialport/stream";
-import { ByteLengthParser } from "serialport";
-import {
-  SetOptions,
-  BindingInterface,
-  PortInterfaceFromBinding,
-  OpenOptionsFromBinding,
-} from "@serialport/bindings-interface";
-import { TestRunRequest, window } from "vscode";
-import * as path from 'path';
+import { DeviceId, DeviceType, EmpDevice } from "./connectionHandler";
 import * as vscode from 'vscode';
-import { maxHeaderSize } from "http";
+import { WebTerminal } from "./webTerminal";
+import { getIpAddr, getSerialPort, ConnectionHandler } from "./connectionHandler";
 
 export function showAvailablePorts() {
   const portList = SerialPort.list();
   portList.then((ports) => console.log(ports));
 }
 
-let terminalMap = new Map();
-
 export class EmpTerminal implements vscode.Pseudoterminal {
-	private writeEmitter = new vscode.EventEmitter<string>();
+	writeEmitter = new vscode.EventEmitter<string>();
 	onDidWrite: vscode.Event<string> = this.writeEmitter.event;
 
-	
-
-	private closeEmitter = new vscode.EventEmitter<number>();
+	closeEmitter = new vscode.EventEmitter<number>();
 	onDidClose?: vscode.Event<number> = this.closeEmitter.event;
 
-	private port;
-	private parser;
-	private portMap;
-	private portPath;
+	private device: EmpDevice;
 
 	handleInput(data: string): void {
-		this.port?.write(data);
+		this.device.sendData(data);
 	}
 
-	constructor(portMap: Map<string, SerialPort>, portPath: string) {
-		this.portMap = portMap;
-		this.portPath = portPath;
-
-		this.port = portMap.get(portPath);
-		// this.parser = new ReadlineParser({ delimiter: "\r\n" });
-		this.parser = new ByteLengthParser({length: 1});
-		this.port?.on("close", () => {
-			terminalMap.delete(portPath);
-			this.writeEmitter.fire("\r\n**Error: Connection Expired**\r\nPlease close current terminal.");
-		});
-
-		this.port?.pipe(this.parser);
-
-
-		this.parser.on("error", (err) => {
-			this.writeEmitter.fire("Error: " + err.toString() + "\r\n");
-		});
-
-		this.parser.on("open", () => {
-			this.writeEmitter.fire("Serial Connected: " + portPath + "\r\n");
-		});
-
-		this.parser.on("data", (data) => {
-			this.writeEmitter.fire(data.toString());
-		});
-	}
+	constructor(device: EmpDevice) {
+		this.device = device;
+		device.attachTerminal(this);
+		}
 
 	open(initialDimensions: vscode.TerminalDimensions | undefined): void {
 
 	}
 
 	close(): void {
-		// this.portMap.delete(this.portPath);
-		terminalMap.delete(this.portPath);
+		this.device.detachTerminal(this);
 	}
 }
 
-
-export class TerminalWrapper {
-	terminal;
-	portPath;
-
-	constructor(portMap: Map<string, SerialPort>, portPath: string) {
-		this.portPath = portPath;
-		if (!terminalMap.has(portPath)) {
-			this.terminal = (<any>vscode.window).createTerminal({
-				name: 'Serial: ' + portPath,
-				pty: new EmpTerminal(portMap, portPath),
-			});
-			terminalMap.set(portPath, this.terminal);
+export class TerminalHandler {
+	terminalMap: Map<DeviceId, vscode.Terminal> = new Map();
+	constructor() {}
+	getTerminal(deviceId: DeviceId, empDevice: EmpDevice): vscode.Terminal {
+		if (this.terminalMap.has(deviceId)) {
+			// let res = this.terminalMap.get(deviceId);
+			// if (res) {
+			// 	return res;
+			// } else {
+			// 	throw new ReferenceError('Device is not connected');
+			// }
 		} else {
-			this.terminal = terminalMap.get(portPath);
+			this.terminalMap.set(deviceId, vscode.window.createTerminal({
+				name: deviceId.deviceType === DeviceType.serialDevice ? "Serial: " + deviceId.devicePath : "ws://" + deviceId.devicePath + ":8266",
+				pty: new EmpTerminal(empDevice),
+			}));
 		}
-
-	}
-
-	show() {
-		this.terminal.show();
-	}
-}
-
-class PortPickItem implements vscode.QuickPickItem{
-	label: string;
-	constructor(name: string) {
-		this.label = name;
-	}
-}
-
-
-// Pop up a quick pick window, let user to choose a serial port path
-// It the port is not connected yet, add the port to the path
-export function pickPort(portMap: Map<string, SerialPort>) {
-	const quickPick = vscode.window.createQuickPick();
-	const portList = SerialPort.list();
-	portList.then((ports) => {
-		quickPick.items = ports.map(port => new PortPickItem(port.path));
-	});
-	quickPick.onDidHide(() => quickPick.dispose());
-	quickPick.onDidChangeSelection(
-		selection => {
-			let portPath = selection[0].label;
-			quickPick.dispose();
-			if (!portMap.has(portPath)) {
-				let port = new SerialPort({
-					path: portPath,
-					baudRate: 115200,
-					hupcl: false,
-				});
-
-				port.on("close", () => {
-					vscode.window.showErrorMessage(portPath + " is disconnected!");
-					portMap.delete(portPath);
-				});
-
-				portMap.set(portPath, port);
-			}
-			new TerminalWrapper(portMap, portPath).show();
-
+		let res = this.terminalMap.get(deviceId);
+		if (res) {
+			return res;
+		} else {
+			throw new ReferenceError('Device is not connected');
 		}
-	);
-	quickPick.show();
+	}
 }
