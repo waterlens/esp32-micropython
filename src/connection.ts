@@ -21,10 +21,11 @@ export class ConnectionUtil {
     return vscode.window.showQuickPick(PortUtil.listAsStringArray());
   }
 
-  async scanAP(pyPrefix: string) {
+  async scanAP(pyPrefix?: string) {
+    const prefix = pyPrefix || await ConnectionUtil.cmd.checkPython();
     try {
       const esptool = await ConnectionUtil.exec(
-        ExternalCommand.getFullCommandString(pyPrefix, "mpremote", [
+        ExternalCommand.getFullCommandString(prefix, "mpremote", [
           "run",
           ConnectionUtil.context.asAbsolutePath(path.join("misc", "scan.py")),
         ]),

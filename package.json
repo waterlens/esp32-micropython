@@ -15,7 +15,8 @@
     "onCommand:emp.esptool.uninstall",
     "onCommand:emp.esptool.check",
     "onCommand:emp.esptool.erase",
-    "onCommand:emp.esptool.program"
+    "onCommand:emp.esptool.program",
+    "onCommand:emp.remote.scan"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -83,6 +84,12 @@
         "command": "emp.esptool.program",
         "title": "Program firmware",
         "icon": "$(circuit-board)",
+        "category": "ESP32 MicroPython"
+      },
+      {
+        "command": "emp.remote.scan",
+        "title": "Scan AP",
+        "icon": "$(globe)",
         "category": "ESP32 MicroPython"
       }
     ],
