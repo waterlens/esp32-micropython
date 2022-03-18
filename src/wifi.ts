@@ -34,6 +34,10 @@ export class WifiUtil {
     this.list.sort(cmp);
   }
 
+  removeEmpty() {
+    this.list = this.list.filter((item) => item[0] !== "");
+  }
+
   removeHidden() {
     this.list = this.list.filter((item) => item[5] === false);
   }

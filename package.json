@@ -16,7 +16,7 @@
     "onCommand:emp.esptool.check",
     "onCommand:emp.esptool.erase",
     "onCommand:emp.esptool.program",
-    "onCommand:emp.remote.scan"
+    "onCommand:emp.remote.connect"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -87,8 +87,8 @@
         "category": "ESP32 MicroPython"
       },
       {
-        "command": "emp.remote.scan",
-        "title": "Scan AP",
+        "command": "emp.remote.connect",
+        "title": "Connect remote to WLAN",
         "icon": "$(globe)",
         "category": "ESP32 MicroPython"
       }

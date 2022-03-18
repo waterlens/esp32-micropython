@@ -1,11 +1,11 @@
 def scan():
     import json
     import network
-    wifi = network.WLAN(network.STA_IF)
-    wifi.active(True)
-    wifi_list = wifi.scan()
-    wifi_list_json = json.dumps(wifi_list)
-    return wifi_list_json
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    wlan_list = wlan.scan()
+    return json.dumps(wlan_list)
+
 
 print(scan())
 del(globals()[scan.__name__])

@@ -1,4 +1,4 @@
-import { exec, spawn } from "child_process";
+import { spawn } from "child_process";
 import * as vscode from "vscode";
 import { Message } from "./message";
 import { ExternalCommand } from "./extCmd";
@@ -67,7 +67,7 @@ export class ESPToolWrapper {
       path = firmware!;
     }
 
-    const python = await ExternalCommand.getPythonPath();
+    const python = await ESPToolWrapper.cmd.checkPythonPath();
     const installed = await ESPToolWrapper.cmd.checkAndPrompt("esptool", true);
     if (!installed) {
       return;
@@ -136,7 +136,7 @@ export class ESPToolWrapper {
       return;
     }
 
-    const python = await ExternalCommand.getPythonPath();
+    const python = await ESPToolWrapper.cmd.checkPythonPath();
     const installed = await ESPToolWrapper.cmd.checkAndPrompt("esptool", true);
     if (!installed) {
       return;

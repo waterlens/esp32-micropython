@@ -12,6 +12,7 @@ export function activate(context: vscode.ExtensionContext) {
   
   portView.register();
   esptoolWrapper.register();
+  connectionUtil.register();
 }
 
 export function deactivate() {}
