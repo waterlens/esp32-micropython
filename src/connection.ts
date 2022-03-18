@@ -1,10 +1,9 @@
 import { exec, spawn } from "child_process";
-import path = require("path");
 import { promisify } from "util";
 import * as vscode from "vscode";
-import { ExternalCommand } from "./externalCmd";
+import { ExternalCommand } from "./extCmd";
 import { Message } from "./message";
-import { PortUtil } from "./port";
+import { UI } from "./ui";
 
 export class ConnectionUtil {
   private static readonly message = new Message("connection util");
@@ -17,21 +16,9 @@ export class ConnectionUtil {
     ConnectionUtil.context = context;
   }
 
-  private portPick() {
-    return vscode.window.showQuickPick(PortUtil.listAsStringArray());
-  }
-
-  async scanAP(pyPrefix?: string) {
-    const prefix = pyPrefix || await ConnectionUtil.cmd.checkPython();
+  async scanAP(path?: string, port?: string) {
+    const prefix = path || (await ConnectionUtil.cmd.checkPythonPath());
     try {
-      const esptool = await ConnectionUtil.exec(
-        ExternalCommand.getFullCommandString(prefix, "mpremote", [
-          "run",
-          ConnectionUtil.context.asAbsolutePath(path.join("misc", "scan.py")),
-        ]),
-        { windowsHide: true }
-      );
-      console.log(JSON.parse(esptool.stderr));
     } catch (error) {
       ConnectionUtil.message.showError(
         "can't scan wifi on device",
@@ -41,12 +28,12 @@ export class ConnectionUtil {
   }
 
   async prepareWiFi(port?: string) {
-    const selected = port || (await this.portPick());
+    const selected = port || (await UI.portPick());
     if (!selected) {
       ConnectionUtil.message.showError("no port selected", "No port selected.");
       return;
     }
-    const pyPrefix = await ConnectionUtil.cmd.checkPython();
+    const python = await ConnectionUtil.cmd.checkPythonPath();
     const installed = await ConnectionUtil.cmd.checkAndPrompt("mpremote", true);
     if (!installed) {
       return;

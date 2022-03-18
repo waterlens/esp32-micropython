@@ -1,115 +1,52 @@
 import { exec, spawn } from "child_process";
 import * as vscode from "vscode";
-import { satisfies } from "semver";
-import { PortUtil } from "./port";
-import { promisify } from "util";
 import { Message } from "./message";
-import { ExternalCommand } from "./externalCmd";
+import { ExternalCommand } from "./extCmd";
+import { UI } from "./ui";
+import { PortItem } from "./portView";
 
 export class ESPToolWrapper {
-  private static readonly exec = promisify(exec);
-  private static readonly spawn = promisify(spawn);
   private readonly outputChannel = vscode.window.createOutputChannel("ESPTool");
   private static readonly message = new Message("esptool wrapper");
   private static readonly cmd = new ExternalCommand(this.message);
+  private context;
+
+  registerAllCommands() {
+    return [
+      vscode.commands.registerCommand("emp.esptool.install", () =>
+        this.install()
+      ),
+      vscode.commands.registerCommand("emp.esptool.check", () => this.check()),
+      vscode.commands.registerCommand("emp.esptool.erase", (item?: PortItem) =>
+        item ? this.erase(item.label) : this.erase()
+      ),
+      vscode.commands.registerCommand(
+        "emp.esptool.program",
+        (item?: PortItem) => (item ? this.program(item.label) : this.program())
+      ),
+    ];
+  }
+
+  register() {
+    for (const cmd of this.registerAllCommands()) {
+      this.context.subscriptions.push(cmd);
+    }
+  }
+
+  constructor(context: vscode.ExtensionContext) {
+    this.context = context;
+  }
 
   async check() {
     return ESPToolWrapper.cmd.checkAndPrompt("esptool");
   }
 
   async install() {
-    vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: "Installing esptool.py",
-        cancellable: false,
-      },
-      async (progress, token) => {
-        const pyPrefix = await ESPToolWrapper.cmd.checkPython();
-        const installed = await ExternalCommand.checkPythonModuleInstalled(
-          pyPrefix,
-          "esptool"
-        );
-        if (!installed) {
-          try {
-            await ESPToolWrapper.exec(
-              ExternalCommand.getFullCommandString(pyPrefix, "pip", [
-                "install",
-                "esptool",
-              ])
-            );
-            ESPToolWrapper.message.showInfo(
-              "install esptool.py success",
-              "Install esptool.py success."
-            );
-          } catch (error) {
-            ESPToolWrapper.message.showError(
-              "can't install esptool.py",
-              "Can't install esptool.py: " + error
-            );
-          }
-        }
-        progress.report({ increment: 100 });
-        return;
-      }
-    );
-  }
-
-  async uninstall() {
-    vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: "Uninstalling esptool.py",
-        cancellable: false,
-      },
-      async (progress, token) => {
-        const pyPrefix = await ESPToolWrapper.cmd.checkPython();
-        const installed = await ExternalCommand.checkPythonModuleInstalled(
-          pyPrefix,
-          "esptool"
-        );
-        if (installed) {
-          try {
-            await ESPToolWrapper.exec(
-              ExternalCommand.getFullCommandString(pyPrefix, "pip", [
-                "uninstall",
-                "esptool",
-                "-y",
-              ])
-            );
-            ESPToolWrapper.message.showInfo(
-              "uninstall esptool.py success",
-              "Uninstall esptool.py success."
-            );
-          } catch (error) {
-            ESPToolWrapper.message.showError(
-              "can't uninstall esptool.py",
-              "Can't uninstall esptool.py: " + error
-            );
-          }
-        }
-        progress.report({ increment: 100 });
-        return;
-      }
-    );
-  }
-
-  private portPick() {
-    return vscode.window.showQuickPick(PortUtil.listAsStringArray());
-  }
-
-  private firmwarePick() {
-    const options: vscode.OpenDialogOptions = {
-      canSelectMany: false,
-      openLabel: "Select a firmware file",
-      canSelectFiles: true,
-      canSelectFolders: false,
-    };
-    return vscode.window.showOpenDialog(options);
+    return ESPToolWrapper.cmd.installPythonModule("esptool");
   }
 
   async program(port?: string, firmware?: string) {
-    const selected = port || (await this.portPick());
+    const selected = port || (await UI.portPick());
     if (!selected) {
       ESPToolWrapper.message.showError("no port selected", "No port selected.");
       return;
@@ -117,7 +54,7 @@ export class ESPToolWrapper {
 
     let path: string;
     if (!firmware) {
-      let picked = await this.firmwarePick();
+      let picked = await UI.firmwarePick();
       if (!picked || picked.length === 0) {
         ESPToolWrapper.message.showError(
           "no firmware selected",
@@ -130,7 +67,7 @@ export class ESPToolWrapper {
       path = firmware!;
     }
 
-    const pyPrefix = await ESPToolWrapper.cmd.getPythonPrefix("3.x");
+    const python = await ExternalCommand.getPythonPath();
     const installed = await ESPToolWrapper.cmd.checkAndPrompt("esptool", true);
     if (!installed) {
       return;
@@ -148,8 +85,8 @@ export class ESPToolWrapper {
           this.outputChannel.show();
 
           console.log("program esp32 on port " + selected);
-          const esptool = spawn(
-            pyPrefix,
+          const [cmd, opt] = ExternalCommand.splitCommandOptions(
+            python,
             ExternalCommand.getPythonModuleOptions("esptool", [
               "--chip",
               "esp32",
@@ -161,9 +98,9 @@ export class ESPToolWrapper {
               "-z",
               "0x1000",
               path,
-            ]),
-            { windowsHide: true }
-          )
+            ])
+          );
+          const esptool = spawn(cmd, opt, { windowsHide: true })
             .on("error", (error) => {
               ESPToolWrapper.message.showError(
                 "esptool.py error",
@@ -193,13 +130,13 @@ export class ESPToolWrapper {
   }
 
   async erase(port?: string) {
-    const selected = port || (await this.portPick());
+    const selected = port || (await UI.portPick());
     if (!selected) {
       ESPToolWrapper.message.showError("no port selected", "No port selected.");
       return;
     }
 
-    const pyPrefix = await ESPToolWrapper.cmd.getPythonPrefix("3.x");
+    const python = await ExternalCommand.getPythonPath();
     const installed = await ESPToolWrapper.cmd.checkAndPrompt("esptool", true);
     if (!installed) {
       return;
@@ -217,17 +154,17 @@ export class ESPToolWrapper {
           this.outputChannel.show();
 
           console.log("erase esp32 on port " + selected);
-          const esptool = spawn(
-            pyPrefix,
+          const [cmd, opt] = ExternalCommand.splitCommandOptions(
+            python,
             ExternalCommand.getPythonModuleOptions("esptool", [
               "--chip",
               "esp32",
               "--port",
               selected,
               "erase_flash",
-            ]),
-            { windowsHide: true }
-          )
+            ])
+          );
+          const esptool = spawn(cmd, opt, { windowsHide: true })
             .on("error", (error) => {
               ESPToolWrapper.message.showError(
                 "esptool.py error",
