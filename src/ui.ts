@@ -3,7 +3,7 @@ import { PortUtil } from "./port";
 import { WifiUtil } from "./wifi";
 
 export class UI {
-  static passwordInput() {
+  static wlanPasswordInput() {
     return vscode.window.showInputBox({
       prompt: "Enter the password",
       password: true,
@@ -14,6 +14,45 @@ export class UI {
         return "Password must be between 8 and 20 characters";
       },
     });
+  }
+
+  static webReplPasswordInput() {
+    return vscode.window.showInputBox({
+      prompt: "Enter the password of WebREPL",
+      password: true,
+      validateInput: (value) => {
+        if (value.length >= 4 && value.length <= 9) {
+          return undefined;
+        }
+        return "Password must be between 4 and 9 characters";
+      },
+    });
+  }
+
+  static confirmWebReplPassword(password: string) {
+    vscode.window.showInputBox({
+      prompt: "Confirm the password of WebREPL",
+      password: true,
+      validateInput: (value) => {
+        return value === password ? undefined : "Passwords do not match";
+      },
+    });
+  }
+
+  static async enableWebReplDaemon() {
+    return (await vscode.window.showQuickPick(["Yes", "No"], {
+      placeHolder: "Do you want enable WebREPL daemon?",
+    })) === "Yes"
+      ? true
+      : false;
+  }
+
+  static async enableWLANDaemon() {
+    return (await vscode.window.showQuickPick(["Yes", "No"], {
+      placeHolder: "Do you want enable WLAN when booting?",
+    })) === "Yes"
+      ? true
+      : false;
   }
 
   static apPick(util: WifiUtil) {

@@ -16,7 +16,8 @@
     "onCommand:emp.esptool.check",
     "onCommand:emp.esptool.erase",
     "onCommand:emp.esptool.program",
-    "onCommand:emp.remote.connect"
+    "onCommand:emp.remote.wlan.connect",
+    "onCommand:emp.remote.webrepl.setup"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -87,8 +88,14 @@
         "category": "ESP32 MicroPython"
       },
       {
-        "command": "emp.remote.connect",
+        "command": "emp.remote.wlan.connect",
         "title": "Connect remote to WLAN",
+        "icon": "$(globe)",
+        "category": "ESP32 MicroPython"
+      },
+      {
+        "command": "emp.remote.webrepl.setup",
+        "title": "Setup WebREPL for remote device",
         "icon": "$(globe)",
         "category": "ESP32 MicroPython"
       }

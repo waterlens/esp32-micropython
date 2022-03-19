@@ -1,6 +1,5 @@
 import { exec, spawn } from "child_process";
-import { open, read, writeFile } from "fs";
-import { readFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
 import { resolve } from "path";
 import { promisify } from "util";
 import * as vscode from "vscode";
@@ -22,9 +21,12 @@ export class ConnectionUtil {
 
   registerAllCommands() {
     return [
-      vscode.commands.registerCommand("emp.remote.connect", () =>
+      vscode.commands.registerCommand("emp.remote.wlan.connect", () =>
         this.remoteConnectWLAN()
       ),
+      vscode.commands.registerCommand("emp.remote.webrepl.setup", () => {
+        this.setupRemoteWebRepl();
+      }),
     ];
   }
 
@@ -34,20 +36,104 @@ export class ConnectionUtil {
     }
   }
 
-  async replaceConnectScriptStub(s: string) {
+  async replaceConnectScriptStub(ap: string, pwd: string) {
     try {
-      const path = this.context.asAbsolutePath("misc/connect.py");
-      const tmpPath = this.context.asAbsolutePath("misc/_connect.py");
+      const path = this.context.asAbsolutePath("misc/_connect.py");
+      const tmpPath = this.context.asAbsolutePath("misc/connect.py");
       const content = await readFile(path, { encoding: "utf-8" });
+      const s = JSON.stringify([ap, pwd]);
       await writeFile(
         tmpPath,
-        content.replace(/"""__##stub##__"""/g, `"""${s}"""`),
-        () => {}
+        content.replace(/"""__##stub##__"""/g, `"""${s}"""`)
       );
     } catch (error) {
       ConnectionUtil.message.showError(
         "can't open code snippet for connecting",
         "Can't open code snippet for connecting: " + error
+      );
+    }
+  }
+
+  async replaceWebReplConfigStub(pwd: string) {
+    try {
+      const path = this.context.asAbsolutePath("misc/_webrepl_cfg.py");
+      const tmpPath = this.context.asAbsolutePath("misc/webrepl_cfg.py");
+      const content = await readFile(path, { encoding: "utf-8" });
+      await writeFile(
+        tmpPath,
+        content.replace(/"""__##stub##__"""/g, `"""${pwd}"""`)
+      );
+    } catch (error) {
+      ConnectionUtil.message.showError(
+        "can't open code snippet for connecting",
+        "Can't open code snippet for connecting: " + error
+      );
+    }
+  }
+
+  async changeRemoteWebReplDaemonStatus(status: boolean) {
+    try {
+      const path = this.context.asAbsolutePath("misc/_boot.py");
+      const tmpPath = this.context.asAbsolutePath("misc/boot.py");
+      const content = await readFile(path, { encoding: "utf-8" });
+      let lines = content.split("\n");
+      let found = false;
+
+      lines.forEach((line, index) => {
+        if (line.indexOf("webrepl") !== -1) {
+          found = true;
+          if (status && line.startsWith("#")) {
+            lines[index] = line.replace("#", "");
+          } else if (!status && !line.startsWith("#")) {
+            lines[index] = "#".concat(line);
+          }
+        }
+      });
+
+      if (!found && status) {
+        lines = ["import webrepl", "webrepl.start()"];
+      }
+
+      await writeFile(tmpPath, lines.join("\n"));
+    } catch (error) {
+      ConnectionUtil.message.showError(
+        "can't change remote daemon status",
+        "Can't change remote daemon status: " + error
+      );
+    }
+  }
+
+  async changeRemoteWlanDaemonStatus(status: boolean) {
+    try {
+      const path = this.context.asAbsolutePath("misc/_boot.py");
+      const tmpPath = this.context.asAbsolutePath("misc/boot.py");
+      const content = await readFile(path, { encoding: "utf-8" });
+      let lines = content.split("\n");
+      let found = false;
+
+      lines.forEach((line, index) => {
+        if (line.indexOf("connect") !== -1) {
+          found = true;
+          if (status && line.startsWith("#")) {
+            lines[index] = line.replace("#", "");
+          } else if (!status && !line.startsWith("#")) {
+            lines[index] = "#".concat(line);
+          }
+        }
+      });
+
+      if (!found && status) {
+        lines = lines.concat([
+          "import connect",
+          "connect.connect(connect.PASS, -1, False)",
+        ]);
+      }
+
+      await writeFile(tmpPath, lines.join("\n"));
+    } catch (error) {
+      ConnectionUtil.message.showError(
+        "can't change remote daemon status",
+        "Can't change remote daemon status: " + error
       );
     }
   }
@@ -67,7 +153,7 @@ export class ConnectionUtil {
           "connect",
           port,
           "run",
-          this.context.asAbsolutePath("misc/state.py"),
+          this.context.asAbsolutePath("misc/_state.py"),
         ].join(" ")
       );
       const res = JSON.parse(state.stdout);
@@ -86,6 +172,50 @@ export class ConnectionUtil {
       );
       return {};
     }
+  }
+
+  async setupRemoteWebRepl(port?: string) {
+    const python = await ConnectionUtil.cmd.checkPythonPath();
+    const installed = await ConnectionUtil.cmd.checkAndPrompt("mpremote", true);
+    // if (!installed) {
+    //  return;
+    // }
+    const selected = port || (await UI.portPick());
+    if (!selected) {
+      ConnectionUtil.message.showError("no port selected", "No port selected.");
+      return;
+    }
+
+    vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Window,
+        cancellable: false,
+        title: `Remote connection`,
+      },
+      async (progress, token) => {
+        return new Promise<void>(async (resolve, reject) => {
+          try {
+            const pwd = await UI.webReplPasswordInput();
+            if (!pwd) {
+              resolve();
+              return;
+            }
+
+            await UI.confirmWebReplPassword(pwd);
+            this.replaceWebReplConfigStub(pwd);
+
+            const enable = await UI.enableWebReplDaemon();
+            this.changeRemoteWebReplDaemonStatus(enable);
+          } catch (error) {
+            ConnectionUtil.message.showError(
+              "can't set up WebREPL configure",
+              "Can't set up WebREPL configure: " + error
+            );
+            resolve();
+          }
+        });
+      }
+    );
   }
 
   async remoteConnectWLAN(port?: string) {
@@ -122,7 +252,7 @@ export class ConnectionUtil {
                 "connect",
                 selected,
                 "run",
-                this.context.asAbsolutePath("misc/scan.py"),
+                this.context.asAbsolutePath("misc/_scan.py"),
               ].join(" ")
             );
 
@@ -136,17 +266,18 @@ export class ConnectionUtil {
             progress.report({ message: "Select an AP ..." });
             const pickedAP = await UI.apPick(wl);
             if (!pickedAP) {
+              resolve();
               return;
             }
 
             progress.report({ message: "Input the password ..." });
-            const pass = await UI.passwordInput();
-            if (!pass) {
+            const pwd = await UI.wlanPasswordInput();
+            if (!pwd) {
+              resolve();
               return;
             }
 
-            const json = JSON.stringify([pickedAP, pass]);
-            this.replaceConnectScriptStub(json);
+            this.replaceConnectScriptStub(pickedAP, pwd);
 
             progress.report({ message: "Try connecting ..." });
             await ConnectionUtil.exec(
@@ -155,7 +286,7 @@ export class ConnectionUtil {
                 "connect",
                 selected,
                 "run",
-                this.context.asAbsolutePath("misc/_connect.py"),
+                this.context.asAbsolutePath("misc/connect.py"),
               ].join(" ")
             );
 
@@ -171,7 +302,12 @@ export class ConnectionUtil {
                   "try failed",
                   "Remote device failed to connect to the WLAN: " + pickedAP
                 );
+                resolve();
+                return;
               }
+
+              const enable = await UI.enableWLANDaemon();
+              this.changeRemoteWlanDaemonStatus(enable);
               resolve();
             }, 5000);
           } catch (error) {
