@@ -1,6 +1,6 @@
-import { exec, spawn } from "child_process";
-import { readFile, writeFile } from "fs/promises";
-import { resolve } from "path";
+import { exec, execSync, spawn } from "child_process";
+import { readdir, readFile, writeFile } from "fs/promises";
+import path = require("path");
 import { promisify } from "util";
 import * as vscode from "vscode";
 import { ExternalCommand } from "./extCmd";
@@ -33,6 +33,34 @@ export class ConnectionUtil {
   register() {
     for (const cmd of this.registerAllCommands()) {
       this.context.subscriptions.push(cmd);
+    }
+  }
+
+  async syncBasicFileWithRemote(port: string) {}
+
+  async syncAllBasicFilesWithRemote(port: string) {
+    try {
+      const scriptDirPath = this.context.asAbsolutePath("misc");
+      const files = await readdir(scriptDirPath);
+      files.forEach((file, index) => {
+        if (!file.startsWith("_")) {
+          const cmd = [
+            "mpremote",
+            "connect",
+            port,
+            "fs",
+            "cp",
+            path.join(scriptDirPath, file),
+            ":" + file,
+          ].join(" ");
+          execSync(cmd);
+        }
+      });
+    } catch (error) {
+      ConnectionUtil.message.showError(
+        "can't sync files",
+        "Can't sync files: " + error
+      );
     }
   }
 
@@ -125,7 +153,7 @@ export class ConnectionUtil {
       if (!found && status) {
         lines = lines.concat([
           "import connect",
-          "connect.connect(connect.PASS, -1, False)",
+          "connect.connect(connect.PASS, 3, False)",
         ]);
       }
 
@@ -190,7 +218,7 @@ export class ConnectionUtil {
       {
         location: vscode.ProgressLocation.Window,
         cancellable: false,
-        title: `Remote connection`,
+        title: `WebREPL setup ...`,
       },
       async (progress, token) => {
         return new Promise<void>(async (resolve, reject) => {
@@ -206,6 +234,8 @@ export class ConnectionUtil {
 
             const enable = await UI.enableWebReplDaemon();
             this.changeRemoteWebReplDaemonStatus(enable);
+            this.syncAllBasicFilesWithRemote(selected);
+            resolve();
           } catch (error) {
             ConnectionUtil.message.showError(
               "can't set up WebREPL configure",
@@ -308,6 +338,8 @@ export class ConnectionUtil {
 
               const enable = await UI.enableWLANDaemon();
               this.changeRemoteWlanDaemonStatus(enable);
+              progress.report({ message: "Syncing files ..." });
+              this.syncAllBasicFilesWithRemote(selected);
               resolve();
             }, 5000);
           } catch (error) {
