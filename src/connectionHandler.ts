@@ -2,6 +2,10 @@ import { MicroPythonDevice } from "micropython-ctl";
 import * as vscode from 'vscode';
 import { SerialPort } from "serialport";
 import { EmpTerminal } from "./terminal";
+import { openStdin } from "process";
+// import { WebSocket } from "ws";
+import * as WebSocket from 'ws';
+import { time } from "console";
 
 export enum DeviceType {
     webDevice,
@@ -20,6 +24,14 @@ export class DeviceId {
         //     this.password = password;
         // }
     }
+
+    toString(): string {
+        if (this.deviceType === DeviceType.serialDevice) {
+            return "__serial__" + this.devicePath;
+        } else {
+            return "__web__" + this.devicePath;
+        }
+    }
 }
 
 export interface EmpDevice {
@@ -28,12 +40,11 @@ export interface EmpDevice {
     linkedTerminals: Array<EmpTerminal>;
     attachTerminal(terminal: EmpTerminal): void;
     detachTerminal(terminal: EmpTerminal): void;
+    isConnected(): boolean;
 }
 
 export class SerialDevice implements EmpDevice {
     onTerminalData = (data: string) => {
-        console.log(data);
-        console.log(this.linkedTerminals.length);
         for (let i of this.linkedTerminals) {
             i.writeEmitter.fire(data);
         }
@@ -53,6 +64,13 @@ export class SerialDevice implements EmpDevice {
         this.serialPort.on("data", (data) => {
             this.onTerminalData(data.toString());
         });
+        this.serialPort.on('close', () => {
+            this.onTerminalData('Connection Expired');
+        });
+    }
+
+    isConnected(): boolean {
+        return this.serialPort.isOpen;
     }
 
 
@@ -61,6 +79,7 @@ export class SerialDevice implements EmpDevice {
     }
 
     attachTerminal(terminal: EmpTerminal): void {
+        console.log('adding terminal');
         this.linkedTerminals.push(terminal);
     }
 
@@ -74,20 +93,54 @@ export class SerialDevice implements EmpDevice {
     }
 }
 
-export class WebDevice extends MicroPythonDevice implements EmpDevice {
-    linkedTerminals: Array<EmpTerminal>;
+function delay(ms: number) {
+    return new Promise( resolve => setTimeout(resolve, ms) );
+}
 
-    constructor() {
-        super();
+export class WebDevice implements EmpDevice {
+    linkedTerminals: Array<EmpTerminal>;
+    webSocket: WebSocket;
+    binaryState = 0;
+    connectStatus = false;
+
+    onTerminalData = (data: string) => {
+        for (let i of this.linkedTerminals) {
+            i.writeEmitter.fire(data);
+        }
+    }; 
+
+    constructor(devicePath: string, password: string) {
+
         this.linkedTerminals = new Array();
-        this.onTerminalData = (data: string) => {
-            for (let i of this.linkedTerminals) {
-                i.writeEmitter.fire(data);
-            }
-        }; 
+        this.webSocket = new WebSocket("ws://" + devicePath + ":8266");
+        this.webSocket.binaryType = 'arraybuffer';
+        this.webSocket.on('message', (data) => {
+            this.onTerminalData(data.toString());
+            console.log(data);
+        }); 
+        this.webSocket.on('open', () => {
+            this.webSocket.send(password + '\r\n');
+
+        });
+        this.connectStatus = true;
+        this.webSocket.on('close', () => {
+            this.connectStatus = false;
+            this.onTerminalData('Connection Expired.');
+        });
     }
 
+    sendData(data: string): void {
+        this.webSocket.send(data);
+    }
+
+    isConnected(): boolean {
+        // return true;
+        return this.connectStatus;
+    }
+
+
     attachTerminal(terminal: EmpTerminal): void {
+        // console.log(this.getState());
         this.linkedTerminals.push(terminal);
     }
 
@@ -97,38 +150,40 @@ export class WebDevice extends MicroPythonDevice implements EmpDevice {
                 this.linkedTerminals.splice(i, 1);
                 break;
             }
+        }
+        if (this.linkedTerminals.length === 0) {
+            this.webSocket.close();
+            this.connectStatus = false;
         }
     }
 
 }
 
 export class ConnectionHandler {
-    private deviceMap: Map<DeviceId, EmpDevice> = new Map();
+    private deviceMap: Map<string, EmpDevice> = new Map();
     // private countMap: Map<DeviceId, number> = new Map();
 
     constructor() {
 
     }
 
-    getDeviceList(): Array<DeviceId> {
-        return [...this.deviceMap.keys()];
-    }
-
     peekDevice(deviceId: DeviceId): EmpDevice | undefined {
-        return this.deviceMap.get(deviceId);
+        return this.deviceMap.get(deviceId.toString());
     }
 
     async takeDevice(deviceId: DeviceId): Promise<EmpDevice> {
         let ret = this.peekDevice(deviceId);
-        if (ret === undefined) {
+
+        console.log(this.deviceMap.has(deviceId.toString()));
+        if (ret === undefined || !ret.isConnected()) {
             if (deviceId.deviceType === DeviceType.serialDevice) {
                 ret = new SerialDevice(deviceId.devicePath);
-                this.deviceMap.set(deviceId, ret);
+                this.deviceMap.set(deviceId.toString(), ret);
             } else {
-                let temp = new WebDevice();
                 let password = await getPassword();
-                temp.connectNetwork(deviceId.devicePath, password);
-                this.deviceMap.set(deviceId, temp);
+                let temp = new WebDevice(deviceId.devicePath, password);
+                this.deviceMap.set(deviceId.toString(), temp);
+                console.log(this.deviceMap.has(deviceId.toString()));
                 ret = temp;
             }
         }

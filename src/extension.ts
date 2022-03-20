@@ -3,7 +3,8 @@ import * as vscode from "vscode";
 import { DownloadUtil } from "./downloadUtil";
 import { PortProvider } from "./portView";
 import { ConnectionHandler, getIpAddr, DeviceType, DeviceId, getSerialPort } from "./connectionHandler";
-import { EmpTerminal, TerminalHandler } from "./terminal";
+// import { EmpTerminal, TerminalHandler } from "./terminal";
+import { EmpTerminal, TerminalWrapper } from "./terminal";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('"esp32-micropython" is now active!');
@@ -12,8 +13,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   const portView = new PortProvider();
   const downloadUtil = new DownloadUtil();
-  const connectionHandler = new ConnectionHandler();
-  const terminalHandler = new TerminalHandler();
+  const terminalWrapper = new TerminalWrapper();
+  // const terminalHandler = new TerminalHandler();
 
   vscode.window.registerTreeDataProvider("emp.port", portView);
   context.subscriptions.push(
@@ -29,23 +30,13 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("emp.terminal.launch", async () => {
-      let serialPortNumber = await getSerialPort();
-      console.log(serialPortNumber);
-      let deviceId = new DeviceId(DeviceType.serialDevice, serialPortNumber);
-      let device = await connectionHandler.takeDevice(deviceId);
-      let terminal = terminalHandler.getTerminal(deviceId, device);
-      terminal.show();
+      terminalWrapper.createSerialTerminal();
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("emp.terminal.webrepl", async () => {
-      let ipAddr = await getIpAddr();
-      let deviceId = new DeviceId(DeviceType.webDevice, ipAddr);
-      console.log(ipAddr);
-      let device = await connectionHandler.takeDevice(deviceId);
-      let terminal = terminalHandler.getTerminal(deviceId, device);
-      terminal.show();
+      terminalWrapper.createWebTerminal();
     })
   );
 
