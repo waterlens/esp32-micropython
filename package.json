@@ -12,7 +12,7 @@
   "activationEvents": [
     "onView:emp.port",
     "onCommand:emp.terminal.launch",
-    "onCommand:emp.terminal.webrepl"
+    "onCommand:emp.terminal.webrepl",
     "onCommand:emp.esptool.install",
     "onCommand:emp.esptool.uninstall",
     "onCommand:emp.esptool.check",

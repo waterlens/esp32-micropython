@@ -1,5 +1,4 @@
 import { exec } from "child_process";
-import { satisfies } from "semver";
 import { promisify } from "util";
 import { Message } from "./message";
 import * as vscode from "vscode";
