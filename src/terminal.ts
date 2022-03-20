@@ -35,3 +35,32 @@ export class EmpTerminal implements vscode.Pseudoterminal {
 		this.device.detachTerminal(this);
 	}
 }
+
+export class TerminalWrapper {
+	connectionHandler = new ConnectionHandler();
+
+	async createSerialTerminal() {
+		let serialPortNumber = await getSerialPort();
+		console.log(serialPortNumber);
+		let deviceId = new DeviceId(DeviceType.serialDevice, serialPortNumber);
+		let device = await this.connectionHandler.takeDevice(deviceId);
+		// let terminal = terminalHandler.getTerminal(deviceId, device);
+		let terminal = vscode.window.createTerminal({
+					name: "Serial: " + deviceId.devicePath,
+					pty: new EmpTerminal(device),
+		});
+		terminal.show();
+	}	
+	async createWebTerminal() {
+      let ipAddr = await getIpAddr();
+      let deviceId = new DeviceId(DeviceType.webDevice, ipAddr);
+      console.log(ipAddr);
+      let device = await this.connectionHandler.takeDevice(deviceId);
+      // let terminal = terminalHandler.getTerminal(deviceId, device);
+      let terminal = vscode.window.createTerminal({
+				name: "ws://" + deviceId.devicePath + ":8266",
+				pty: new EmpTerminal(device),
+      });
+      terminal.show();
+    }
+}
