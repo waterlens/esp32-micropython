@@ -3,6 +3,9 @@ import * as vscode from 'vscode';
 import { SerialPort } from "serialport";
 import { EmpTerminal } from "./terminal";
 import { openStdin } from "process";
+// import { WebSocket } from "ws";
+import * as WebSocket from 'ws';
+import { time } from "console";
 
 export enum DeviceType {
     webDevice,
@@ -45,15 +48,7 @@ export class SerialDevice implements EmpDevice {
         for (let i of this.linkedTerminals) {
             i.writeEmitter.fire(data);
         }
-
-        this.serialPort.on("close", () => {
-            for (let i of this.linkedTerminals) {
-                i.writeEmitter.fire('Connection expired\r\n');
-            }
-        });
     }; 
-
-    
 
     private serialPort: SerialPort;
     linkedTerminals = new Array();
@@ -69,7 +64,11 @@ export class SerialDevice implements EmpDevice {
         this.serialPort.on("data", (data) => {
             this.onTerminalData(data.toString());
         });
+        this.serialPort.on('close', () => {
+            this.onTerminalData('Connection Expired');
+        });
     }
+
     isConnected(): boolean {
         return this.serialPort.isOpen;
     }
@@ -80,6 +79,7 @@ export class SerialDevice implements EmpDevice {
     }
 
     attachTerminal(terminal: EmpTerminal): void {
+        console.log('adding terminal');
         this.linkedTerminals.push(terminal);
     }
 
@@ -93,26 +93,54 @@ export class SerialDevice implements EmpDevice {
     }
 }
 
-export class WebDevice extends MicroPythonDevice implements EmpDevice {
+function delay(ms: number) {
+    return new Promise( resolve => setTimeout(resolve, ms) );
+}
+
+export class WebDevice implements EmpDevice {
     linkedTerminals: Array<EmpTerminal>;
+    webSocket: WebSocket;
+    binaryState = 0;
+    connectStatus = false;
 
-    constructor() {
-        super();
+    onTerminalData = (data: string) => {
+        for (let i of this.linkedTerminals) {
+            i.writeEmitter.fire(data);
+        }
+    }; 
+
+    constructor(devicePath: string, password: string) {
+
         this.linkedTerminals = new Array();
-        this.onTerminalData = (data: string) => {
-            for (let i of this.linkedTerminals) {
-                i.writeEmitter.fire(data);
-            }
-        }; 
+        this.webSocket = new WebSocket("ws://" + devicePath + ":8266");
+        this.webSocket.binaryType = 'arraybuffer';
+        this.webSocket.on('message', (data) => {
+            this.onTerminalData(data.toString());
+            console.log(data);
+        }); 
+        this.webSocket.on('open', () => {
+            this.webSocket.send(password + '\r\n');
 
-        this.onclose = () => {
-            for (let i of this.linkedTerminals) {
-                i.writeEmitter.fire('Connection expired\r\n');
-            }
-        };
+        });
+        this.connectStatus = true;
+        this.webSocket.on('close', () => {
+            this.connectStatus = false;
+            this.onTerminalData('Connection Expired.');
+        });
     }
 
+    sendData(data: string): void {
+        this.webSocket.send(data);
+    }
+
+    isConnected(): boolean {
+        // return true;
+        return this.connectStatus;
+    }
+
+
     attachTerminal(terminal: EmpTerminal): void {
+        // console.log(this.getState());
         this.linkedTerminals.push(terminal);
     }
 
@@ -122,6 +150,10 @@ export class WebDevice extends MicroPythonDevice implements EmpDevice {
                 this.linkedTerminals.splice(i, 1);
                 break;
             }
+        }
+        if (this.linkedTerminals.length === 0) {
+            this.webSocket.close();
+            this.connectStatus = false;
         }
     }
 
@@ -134,10 +166,6 @@ export class ConnectionHandler {
     constructor() {
 
     }
-
-    // getDeviceList(): Array<DeviceId> {
-    //     return [...this.deviceMap.keys()];
-    // }
 
     peekDevice(deviceId: DeviceId): EmpDevice | undefined {
         return this.deviceMap.get(deviceId.toString());
@@ -152,9 +180,8 @@ export class ConnectionHandler {
                 ret = new SerialDevice(deviceId.devicePath);
                 this.deviceMap.set(deviceId.toString(), ret);
             } else {
-                let temp = new WebDevice();
                 let password = await getPassword();
-                temp.connectNetwork(deviceId.devicePath, password);
+                let temp = new WebDevice(deviceId.devicePath, password);
                 this.deviceMap.set(deviceId.toString(), temp);
                 console.log(this.deviceMap.has(deviceId.toString()));
                 ret = temp;
