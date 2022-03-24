@@ -90,6 +90,9 @@ export class SerialDevice implements EmpDevice {
                 break;
             }
         }
+        if (this.linkedTerminals.length === 0) {
+            this.serialPort.close();
+        }
     }
 }
 
