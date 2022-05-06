@@ -1,163 +1,194 @@
 {
-  "name": "esp32-micropython",
-  "displayName": "esp32-micropython",
-  "description": "(empty)",
-  "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.64.0"
-  },
-  "categories": [
-    "Other"
-  ],
-  "activationEvents": [
-    "onView:emp.port",
-    "onCommand:emp.terminal.launch",
-    "onCommand:emp.terminal.webrepl",
-    "onCommand:emp.esptool.install",
-    "onCommand:emp.esptool.uninstall",
-    "onCommand:emp.esptool.check",
-    "onCommand:emp.esptool.erase",
-    "onCommand:emp.esptool.program",
-    "onCommand:emp.remote.wlan.connect",
-    "onCommand:emp.remote.webrepl.setup"
-  ],
-  "main": "./out/extension.js",
-  "contributes": {
-    "menus": {
-      "view/title": [
-        {
-          "command": "emp.port.refresh",
-          "when": "view == emp.port",
-          "group": "navigation"
-        }
-      ],
-      "view/item/context": [
-        {
-          "command": "emp.esptool.erase",
-          "when": "view == emp.port",
-          "group": "inline"
-        },
-        {
-          "command": "emp.esptool.erase",
-          "when": "view == emp.port"
-        },
-        {
-          "command": "emp.esptool.program",
-          "when": "view == emp.port",
-          "group": "inline"
-        },
-        {
-          "command": "emp.esptool.program",
-          "when": "view == emp.port"
-        }
-      ]
+    "name": "esp32-micropython",
+    "publisher": "woshifeiwu",
+    "displayName": "esp32-micropython",
+    "description": "(empty)",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.64.0"
     },
-    "commands": [
-      {
-        "command": "emp.port.refresh",
-        "title": "Refresh",
-        "icon": "$(refresh)",
-        "category": "ESP32 MicroPython"
-      },
-      {
-        "command": "emp.esptool.install",
-        "title": "Install esptool.py",
-        "icon": "$(cloud-download)",
-        "category": "ESP32 MicroPython"
-      },
-      {
-        "command": "emp.esptool.uninstall",
-        "title": "Uninstall esptool.py",
-        "icon": "$(close)",
-        "category": "ESP32 MicroPython"
-      },
-      {
-        "command": "emp.esptool.check",
-        "title": "Check esptool.py",
-        "icon": "$(tools)",
-        "category": "ESP32 MicroPython"
-      },
-      {
-        "command": "emp.esptool.erase",
-        "title": "Erase flash",
-        "icon": "$(circuit-board)",
-        "category": "ESP32 MicroPython"
-      },
-      {
-        "command": "emp.esptool.program",
-        "title": "Program firmware",
-        "icon": "$(circuit-board)",
-        "category": "ESP32 MicroPython"
-      },
-      {
-        "command": "emp.remote.wlan.connect",
-        "title": "Connect remote to WLAN",
-        "icon": "$(globe)",
-        "category": "ESP32 MicroPython"
-      },
-      {
-        "command": "emp.remote.webrepl.setup",
-        "title": "Setup WebREPL for remote device",
-        "icon": "$(globe)",
-        "category": "ESP32 MicroPython"
-      },
-      {
-        "command": "emp.terminal.launch",
-        "title": "Serial Connect",
-        "category": "ESP32 MicroPython"
-      },
-      {
-        "command": "emp.terminal.webrepl",
-        "title": "WebRepl Connect",
-        "category": "ESP32 MicroPython"
-      }
+    "categories": [
+        "Other"
     ],
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "esp32-micropython",
-          "title": "ESP32 MicroPython",
-          "icon": "$(list-flat)"
+    "activationEvents": [
+        "onView:emp.port",
+        "onCommand:emp.terminal.launch",
+        "onCommand:emp.terminal.webrepl",
+        "onCommand:emp.esptool.install",
+        "onCommand:emp.esptool.uninstall",
+        "onCommand:emp.esptool.check",
+        "onCommand:emp.esptool.erase",
+        "onCommand:emp.esptool.program",
+        "onCommand:emp.remote.wlan.connect",
+        "onCommand:emp.remote.webrepl.setup",
+        "onCommand:emp.language.enable",
+        "onCommand:emp.language.disable"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "menus": {
+            "view/title": [
+                {
+                    "command": "emp.port.refresh",
+                    "when": "view == emp.port",
+                    "group": "navigation"
+                },
+                {
+                    "command": "emp.language.enable",
+                    "group": "navigation",
+                    "when": "view == emp.port"
+                },
+                {
+                    "command": "emp.language.disable",
+                    "group": "navigation",
+                    "when": "view == emp.port"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "emp.esptool.erase",
+                    "when": "view == emp.port",
+                    "group": "inline"
+                },
+                {
+                    "command": "emp.esptool.erase",
+                    "when": "view == emp.port"
+                },
+                {
+                    "command": "emp.esptool.program",
+                    "when": "view == emp.port",
+                    "group": "inline"
+                },
+                {
+                    "command": "emp.esptool.program",
+                    "when": "view == emp.port"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "emp.port.refresh",
+                "title": "Refresh",
+                "icon": "$(refresh)",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.esptool.install",
+                "title": "Install esptool.py",
+                "icon": "$(cloud-download)",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.esptool.uninstall",
+                "title": "Uninstall esptool.py",
+                "icon": "$(close)",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.esptool.check",
+                "title": "Check esptool.py",
+                "icon": "$(tools)",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.esptool.erase",
+                "title": "Erase flash",
+                "icon": "$(circuit-board)",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.esptool.program",
+                "title": "Program firmware",
+                "icon": "$(circuit-board)",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.remote.wlan.connect",
+                "title": "Connect remote to WLAN",
+                "icon": "$(globe)",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.remote.webrepl.setup",
+                "title": "Setup WebREPL for remote device",
+                "icon": "$(globe)",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.terminal.launch",
+                "title": "Serial Connect",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.terminal.webrepl",
+                "title": "WebRepl Connect",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.language.enable",
+                "title": "Enable Language Support",
+                "category": "ESP32 MicroPython",
+                "icon": {
+                    "dark": "./assets/icons/L_grey.svg",
+                    "light": "./assets/icons/L_black.svg"
+                }
+            },
+            {
+                "command": "emp.language.disable",
+                "title": "Disable Language Support",
+                "category": "ESP32 MicroPython",
+                "icon": {
+                    "dark": "./assets/icons/no_L_grey.svg",
+                    "light": "./assets/icons/no_L_black.svg"
+                }
+            }
+        ],
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "esp32-micropython",
+                    "title": "ESP32 MicroPython",
+                    "icon": "$(list-flat)"
+                }
+            ]
+        },
+        "views": {
+            "esp32-micropython": [
+                {
+                    "id": "emp.port",
+                    "name": "Port",
+                    "icon": "$(list-flat)",
+                    "contextualTitle": "Port"
+                }
+            ]
         }
-      ]
     },
-    "views": {
-      "esp32-micropython": [
-        {
-          "id": "emp.port",
-          "name": "Port",
-          "icon": "$(list-flat)",
-          "contextualTitle": "Port"
-        }
-      ]
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/glob": "^7.2.0",
+        "@types/mocha": "^9.1.0",
+        "@types/node": "14.x",
+        "@types/vscode": "^1.64.0",
+        "@types/ws": "^8.5.3",
+        "@typescript-eslint/eslint-plugin": "^5.12.1",
+        "@typescript-eslint/parser": "^5.12.1",
+        "@vscode/test-electron": "^2.1.2",
+        "electron-rebuild": "^3.2.7",
+        "eslint": "^8.9.0",
+        "glob": "^7.2.0",
+        "mocha": "^9.2.1",
+        "typescript": "^4.5.5"
+    },
+    "dependencies": {
+        "micropython-ctl": "^1.13.4",
+        "serialport": "^10.4.0",
+        "ws": "^8.5.0"
     }
-  },
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
-  },
-  "devDependencies": {
-    "@types/glob": "^7.2.0",
-    "@types/mocha": "^9.1.0",
-    "@types/node": "14.x",
-    "@types/vscode": "^1.64.0",
-    "@types/ws": "^8.5.3",
-    "@typescript-eslint/eslint-plugin": "^5.12.1",
-    "@typescript-eslint/parser": "^5.12.1",
-    "@vscode/test-electron": "^2.1.2",
-    "electron-rebuild": "^3.2.7",
-    "eslint": "^8.9.0",
-    "glob": "^7.2.0",
-    "mocha": "^9.2.1",
-    "typescript": "^4.5.5"
-  },
-  "dependencies": {
-    "micropython-ctl": "^1.13.4",
-    "serialport": "^10.4.0",
-    "ws": "^8.5.0"
-  }
 }

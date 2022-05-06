@@ -7,6 +7,7 @@ import { EmpTerminal, TerminalWrapper } from "./terminal";
 import { PortItem, PortProvider } from "./portView";
 import { ESPToolWrapper } from "./esptool";
 import { ConnectionUtil } from "./connection";
+import { LanguageSupport } from "./language";
 
 
 export function activate(context: vscode.ExtensionContext) {
@@ -32,10 +33,12 @@ export function activate(context: vscode.ExtensionContext) {
   const portView = new PortProvider(context);
   const esptoolWrapper = new ESPToolWrapper(context);
   const connectionUtil = new ConnectionUtil(context);
+  const languageSupport = new LanguageSupport(context);
   
   portView.register();
   esptoolWrapper.register();
   connectionUtil.register();
+  languageSupport.register();
 }
 
 export function deactivate() {}
