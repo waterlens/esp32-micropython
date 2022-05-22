@@ -41,6 +41,8 @@ export interface EmpDevice {
     attachTerminal(terminal: EmpTerminal): void;
     detachTerminal(terminal: EmpTerminal): void;
     isConnected(): boolean;
+    suspend(): void;
+    waken(): void;
 }
 
 export class SerialDevice implements EmpDevice {
@@ -50,22 +52,61 @@ export class SerialDevice implements EmpDevice {
         }
     }; 
 
+    waken(): void {
+        this.eliminateResetInfo = true;
+        this.suspended = false;
+        this.serialPort = new SerialPort({
+            path: this.serialPort.path,
+            baudRate: 115200,
+            hupcl: false,
+        });
+
+        // this.serialPort.write("\r\nimport __tmp__\r\n");
+        this.serialPort.write('\r\nexec(open("__tmp__").read())\r\n');
+
+        this.serialPort.on("data", (data) => {
+            this.onTerminalData(data.toString());
+        });
+
+        this.serialPort.on('close', () => {
+            if (this.suspended) {
+                this.onTerminalData('\r\nStart Executing Local Script\r\n');
+            } else {
+                this.onTerminalData('\r\nConnection Expired\r\n');
+            }
+        });
+    }
+
     private serialPort: SerialPort;
     linkedTerminals = new Array();
+    private suspended: boolean = false;
+    private eliminateResetInfo = false;
+
+    suspend(): void {
+        this.suspended = true;
+        if (this.serialPort.isOpen) {
+            this.serialPort.close(); 
+        }
+    }
 
     constructor(portPath: string) {
-        // this.serialPort = serialPort;
+        this.suspended = false;
         this.serialPort = new SerialPort({
             path: portPath,
             baudRate: 115200,
             hupcl: false,
+            // lock: false,
         });
 
         this.serialPort.on("data", (data) => {
             this.onTerminalData(data.toString());
         });
         this.serialPort.on('close', () => {
-            this.onTerminalData('Connection Expired');
+            if (this.suspended) {
+                this.onTerminalData('\r\nStart Executing Local Script\r\n');
+            } else {
+                this.onTerminalData('\r\nConnection Expired\r\n');
+            }
         });
     }
 
@@ -103,8 +144,8 @@ function delay(ms: number) {
 export class WebDevice implements EmpDevice {
     linkedTerminals: Array<EmpTerminal>;
     webSocket: WebSocket;
-    binaryState = 0;
     connectStatus = false;
+    private suspended = false;
 
     onTerminalData = (data: string) => {
         for (let i of this.linkedTerminals) {
@@ -112,7 +153,37 @@ export class WebDevice implements EmpDevice {
         }
     }; 
 
-    constructor(devicePath: string, password: string) {
+    // this 'suspend' is used to select file, and transmit to webrepl server
+    suspend(): void {
+        // do nothing
+        // redundant due to unreasonable interface design
+        this.webSocket.close();
+        this.suspended = true;
+        // this.webSocket.close(); 
+    }
+
+    // wake and execute the transmitted file
+    waken(): void {
+        this.suspended = false;
+        // this.linkedTerminals = new Array();
+        this.webSocket = new WebSocket("ws://" + this.devicePath + ":8266");
+        this.webSocket.binaryType = 'arraybuffer';
+        this.webSocket.on('message', (data) => {
+            this.onTerminalData(data.toString());
+            console.log(data);
+        }); 
+        this.webSocket.on('open', () => {
+            this.webSocket.send(this.password + '\r\n');
+            this.webSocket.send('\r\nexec(open("__tmp__").read())\r\n');
+        });
+        this.connectStatus = true;
+        this.webSocket.on('close', () => {
+            this.connectStatus = false;
+            this.onTerminalData('Connection Expired.');
+        });
+    }
+
+    constructor(private devicePath: string, private password: string) {
 
         this.linkedTerminals = new Array();
         this.webSocket = new WebSocket("ws://" + devicePath + ":8266");
@@ -194,12 +265,20 @@ export class ConnectionHandler {
     }
 }
 
+let ipMemory: string[] = [];
+let passWordMemory: Map<string, string> = new Map();
 
-async function getPassword(): Promise<string> {
+export async function getPassword(): Promise<string> {
     return new Promise<string>((resolve, reject) => {
         let passwordBar = vscode.window.createInputBox();
         let ret: string;
         passwordBar.password = true;
+
+        let foundPasswd = passWordMemory.get(ipMemory[ipMemory.length - 1]);
+        if (foundPasswd) {
+            ret = foundPasswd;
+            passwordBar.value = foundPasswd;
+        }
 
         passwordBar.onDidChangeValue((val: string) => {
             ret = val;
@@ -208,6 +287,7 @@ async function getPassword(): Promise<string> {
         passwordBar.onDidAccept(() => {
             passwordBar.dispose();
             resolve(ret);
+            passWordMemory.set(ipMemory[ipMemory.length - 1], ret);
         });
 
         passwordBar.show();
@@ -219,6 +299,11 @@ export async function getIpAddr(): Promise<string> {
     return new Promise<string>((resolve, reject) => {
         let ipBar = vscode.window.createInputBox();
         let ret: string;
+        
+        if (ipMemory.length > 0) {
+            ipBar.value = ipMemory[ipMemory.length - 1];
+            ret = ipBar.value;
+        }
 
         ipBar.onDidChangeValue((val: string) => {
             ret = val;
@@ -227,6 +312,7 @@ export async function getIpAddr(): Promise<string> {
         ipBar.onDidAccept(() => {
             ipBar.dispose();
             resolve(ret);
+            ipMemory.push(ret);
         });
 
         ipBar.show();

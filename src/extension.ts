@@ -15,21 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
   // This map is used to hold map<port-path, port> 
   // let portMap = new Map();
 
-  const terminalWrapper = new TerminalWrapper();
-  // const terminalHandler = new TerminalHandler();
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("emp.terminal.launch", async () => {
-      terminalWrapper.createSerialTerminal();
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("emp.terminal.webrepl", async () => {
-      terminalWrapper.createWebTerminal();
-    })
-  );
-
+  const terminalWrapper = new TerminalWrapper(context);
   const portView = new PortProvider(context);
   const esptoolWrapper = new ESPToolWrapper(context);
   const connectionUtil = new ConnectionUtil(context);
@@ -39,6 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
   esptoolWrapper.register();
   connectionUtil.register();
   languageSupport.register();
+  terminalWrapper.register();
 }
 
 export function deactivate() {}

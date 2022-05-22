@@ -3,11 +3,14 @@ import { readdir, readFile, writeFile } from "fs/promises";
 import path = require("path");
 import { promisify } from "util";
 import * as vscode from "vscode";
+import { getIpAddr, getPassword } from "./connectionHandler";
 import { ExternalCommand } from "./extCmd";
 import { Message } from "./message";
+import { TerminalWrapper } from "./terminal";
 import { UI } from "./ui";
 import { WifiUtil } from "./wifi";
 
+// Here remote stands for serial connected device
 export class ConnectionUtil {
   private static readonly message = new Message("connection util");
   private static readonly exec = promisify(exec);
@@ -27,6 +30,12 @@ export class ConnectionUtil {
       vscode.commands.registerCommand("emp.remote.webrepl.setup", () => {
         this.setupRemoteWebRepl();
       }),
+      vscode.commands.registerCommand("emp.remote.serial.execute", () => {
+        this.execCurrentScriptRemotely();
+      }),
+      vscode.commands.registerCommand("emp.remote.webrepl.execute", () => {
+          this.execCurrentScriptViaNetwork();
+      })
     ];
   }
 
@@ -36,7 +45,69 @@ export class ConnectionUtil {
     }
   }
 
-  async syncBasicFileWithRemote(port: string) {}
+  async execCurrentScriptViaNetwork(ip?: string) {
+    const selectedIp: string = ip || await getIpAddr();
+    const password = await getPassword();
+    if (!selectedIp) {
+      ConnectionUtil.message.showError("no webrepl device selected", "No webrepl selected.");
+      return;
+    } else {
+      this._execCurrentScriptViaNetwork(selectedIp, password);
+    }
+  }
+
+  async _execCurrentScriptViaNetwork(ip: string, password: string) {
+    const scriptPath = vscode.window.activeTextEditor?.document.fileName;
+    const webreplCliPath = this.context.asAbsolutePath("webrepl/webrepl_cli.py");
+    const cmd = [
+        "python",
+        webreplCliPath,
+        "-p",
+        password,
+        scriptPath,
+        ip + ":/__tmp__"
+    ].join(" ");
+    TerminalWrapper.suspendWebDevice(ip);
+    let handle = exec(cmd);
+    console.log(cmd);
+    TerminalWrapper.letOfficialTakeOver(ip, handle);
+    handle.on("exit", () => {
+        TerminalWrapper.letSelfMaintainedTakeOver(ip);
+        TerminalWrapper.wakenWebDevice(ip);
+    });
+  }
+
+  async execCurrentScriptRemotely(port?: string) {
+    const selected = port || (await UI.portPick());
+    if (!selected) {
+      ConnectionUtil.message.showError("no port selected", "No port selected.");
+      return;
+    } else {
+      this._execCurrentScriptRemotely(selected);
+    }
+  }
+
+  async _execCurrentScriptRemotely(port: string) {
+    const scriptPath = vscode.window.activeTextEditor?.document.fileName;
+    const cmd = [
+      "mpremote",
+      "cp",
+      scriptPath,
+      ":/__tmp__",
+    ].join(" ");
+    TerminalWrapper.suspendSerialDevice(port);
+    let handle = exec(cmd);
+    console.log(cmd);
+    TerminalWrapper.letMpremoteTakeOver(port, handle);
+    handle.on("exit", () => {
+        TerminalWrapper.letSerialTakeOver(port); 
+        TerminalWrapper.wakenSerialDevice(port);
+    });
+  }
+
+  async syncBasicFileWithRemote(port: string) {
+
+  }
 
   async syncAllBasicFilesWithRemote(port: string) {
     try {

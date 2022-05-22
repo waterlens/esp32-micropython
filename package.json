@@ -22,7 +22,9 @@
         "onCommand:emp.remote.wlan.connect",
         "onCommand:emp.remote.webrepl.setup",
         "onCommand:emp.language.enable",
-        "onCommand:emp.language.disable"
+        "onCommand:emp.language.disable",
+        "onCommand:emp.remote.serial.execute",
+        "onCommand:emp.remote.webrepl.execute"
     ],
     "main": "./out/extension.js",
     "contributes": {
@@ -125,6 +127,16 @@
                 "category": "ESP32 MicroPython"
             },
             {
+                "command": "emp.remote.serial.execute",
+                "title": "Serial Remote Execute",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.remote.webrepl.execute",
+                "title": "Webrepl Remote Execute",
+                "category": "ESP32 MicroPython"
+            },
+            {
                 "command": "emp.language.enable",
                 "title": "Enable Language Support",
                 "category": "ESP32 MicroPython",
@@ -189,6 +201,7 @@
     "dependencies": {
         "micropython-ctl": "^1.13.4",
         "serialport": "^10.4.0",
+        "string-to-stream": "^3.0.1",
         "ws": "^8.5.0"
     }
 }
