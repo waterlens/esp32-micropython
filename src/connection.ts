@@ -401,6 +401,8 @@ export class ConnectionUtil {
 
             await this.replaceConnectConfig(selected, pickedAP, pwd);
             this.pushRemoteConfigFile(selected);
+            progress.report({ message: "Syncing files ..." });
+            await this.syncAllBasicFilesWithRemote(selected);
 
             progress.report({ message: "Try connecting ..." });
             await ConnectionUtil.exec(
@@ -409,7 +411,7 @@ export class ConnectionUtil {
                 "connect",
                 selected,
                 "run",
-                this.context.asAbsolutePath("misc/connect.py"),
+                this.context.asAbsolutePath("misc/to_remote/connect.py"),
               ].join(" ")
             );
 

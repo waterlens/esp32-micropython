@@ -1,7 +1,8 @@
 def connect(config, retry, disconnect):
     import network
-    ssid = config.wlan.ssid;
-    password = config.wlan.password;
+    wlan = config['wlan']
+    ssid = wlan['ssid']
+    password = wlan['password']
     wlan = network.WLAN(network.STA_IF)
     wlan.config(reconnects=retry)
     wlan.active(True)

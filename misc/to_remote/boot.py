@@ -7,9 +7,9 @@ def init():
     import connect
 
     config = config.get()
-    if config.wlan.enabled:
+    if config['wlan']['enabled']:
         connect.connect(config, -1, False)
-    if config.webrepl.enabled:
+    if config['webrepl']['enabled']:
         import webrepl
         webrepl.start()
 
