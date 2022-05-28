@@ -71,28 +71,29 @@ export class EmpTerminal implements vscode.Pseudoterminal {
 }
 
 export class TerminalWrapper {
-	connectionHandler = new ConnectionHandler();
+	private static connectionHandler = new ConnectionHandler();
     private static idTerminalListMap: Map<string, [EmpTerminal]> = new Map();
     private static idDeviceMap: Map<string, EmpDevice> = new Map();
+    private static webDeviceList: Map<string, EmpDevice> = new Map();
 
     constructor(private context: vscode.ExtensionContext) {}
 
     register() {
         this.context.subscriptions.push(
             vscode.commands.registerCommand("emp.terminal.launch", async () => {
-                this.createSerialTerminal();
+                TerminalWrapper.createSerialTerminal();
             })
         );
 
         this.context.subscriptions.push(
             vscode.commands.registerCommand("emp.terminal.webrepl", async () => {
-                this.createWebTerminal();
+                TerminalWrapper.createWebTerminal();
             })
         );
     }
 
-	async createSerialTerminal() {
-		let serialPortNumber = await getSerialPort();
+	static async createSerialTerminal(serialPort?: string) {
+		let serialPortNumber = serialPort || await getSerialPort();
 		console.log(serialPortNumber);
 		let deviceId = new DeviceId(DeviceType.serialDevice, serialPortNumber);
 		let device = await this.connectionHandler.takeDevice(deviceId);
@@ -111,13 +112,14 @@ export class TerminalWrapper {
 		terminal.show();
 	}	
 
-	async createWebTerminal() {
-        let ipAddr = await getIpAddr();
+	static async createWebTerminal(ip?: string) {
+        let ipAddr = ip || await getIpAddr();
         let deviceId = new DeviceId(DeviceType.webDevice, ipAddr);
         // console.log(ipAddr);
-        let device = await this.connectionHandler.takeDevice(deviceId);
+        let device = await TerminalWrapper.connectionHandler.takeDevice(deviceId);
         // let terminal = terminalHandler.getTerminal(deviceId, device);
         TerminalWrapper.idDeviceMap.set(ipAddr, device);
+        TerminalWrapper.webDeviceList.set(ipAddr, device);
         let pty = new EmpTerminal(device);
         let terminal = vscode.window.createTerminal({
                     name: "ws://" + deviceId.devicePath + ":8266",
@@ -140,6 +142,23 @@ export class TerminalWrapper {
     static suspendWebDevice(ip: string) {
         let device = TerminalWrapper.idDeviceMap.get(ip);
         device?.suspend();
+    }
+
+    static getDeviceFiles(address: string, type: DeviceType, path?: string): void {
+        let device = TerminalWrapper.idDeviceMap.get(address);
+        if (!device) {
+            if (type = DeviceType.serialDevice) {
+                this.createSerialTerminal(address);
+            } else {
+                this.createWebTerminal(address);
+            }
+            device = TerminalWrapper.idDeviceMap.get(address);
+        }
+        if (device) {
+            device.getFiles();
+        } else {
+
+        }
     }
 
     static letMpremoteTakeOver(port: string, handle: ChildProcess) {
@@ -181,11 +200,16 @@ export class TerminalWrapper {
 
     static wakenSerialDevice(port: string) {
         let device = TerminalWrapper.idDeviceMap.get(port);
-        device?.waken();
+        device?.waken(true);
     }
 
     static wakenWebDevice(port: string) {
         let device = TerminalWrapper.idDeviceMap.get(port);
-        device?.waken();
+        device?.waken(true);
+    }
+
+    static getWebDeviceList() {
+        let ret = Array.from(TerminalWrapper.webDeviceList.keys());
+        return ret;
     }
 }

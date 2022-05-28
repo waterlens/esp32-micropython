@@ -8,6 +8,7 @@ import { PortItem, PortProvider } from "./portView";
 import { ESPToolWrapper } from "./esptool";
 import { ConnectionUtil } from "./connection";
 import { LanguageSupport } from "./language";
+import { WebreplTreeView } from "./webreplView";
 
 
 export function activate(context: vscode.ExtensionContext) {
@@ -20,12 +21,14 @@ export function activate(context: vscode.ExtensionContext) {
   const esptoolWrapper = new ESPToolWrapper(context);
   const connectionUtil = new ConnectionUtil(context);
   const languageSupport = new LanguageSupport(context);
+  const webreplTreeView = new WebreplTreeView(context);
   
   portView.register();
   esptoolWrapper.register();
   connectionUtil.register();
   languageSupport.register();
   terminalWrapper.register();
+  webreplTreeView.register();
 }
 
 export function deactivate() {}
