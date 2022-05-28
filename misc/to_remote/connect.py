@@ -4,8 +4,9 @@ def connect(config, retry, disconnect):
     ssid = wlan['ssid']
     password = wlan['password']
     wlan = network.WLAN(network.STA_IF)
-    wlan.config(reconnects=retry)
+    wlan.active(False)
     wlan.active(True)
+    wlan.config(reconnects=retry)
     if disconnect:
         wlan.disconnect()
     wlan.connect(ssid, password)
