@@ -1,7 +1,7 @@
-def connect(s, retry, disconnect):
-    import json
+def connect(config, retry, disconnect):
     import network
-    ssid, password = json.loads(s)
+    ssid = config.wlan.ssid;
+    password = config.wlan.password;
     wlan = network.WLAN(network.STA_IF)
     wlan.config(reconnects=retry)
     wlan.active(True)
@@ -9,7 +9,6 @@ def connect(s, retry, disconnect):
         wlan.disconnect()
     wlan.connect(ssid, password)
 
-
-PASS = """__##stub##__"""
 if __name__ == "__main__":
-    connect(PASS, 3, True)
+    import config
+    connect(config.get(), 3, True)
