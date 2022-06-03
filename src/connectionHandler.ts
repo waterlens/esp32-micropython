@@ -10,6 +10,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { setFlagsFromString } from "v8";
 import EventEmitter from "events";
+import { resolve } from "path";
 
 export let serialGetFileDone = new vscode.EventEmitter<string>();
 export let webGetFileDone = new vscode.EventEmitter<string>();
@@ -391,7 +392,20 @@ export class ConnectionHandler {
 let ipMemory: string[] = [];
 let passWordMemory: Map<string, string> = new Map();
 
-export async function getPassword(): Promise<string> {
+export async function getPassword(ip?: string): Promise<string> {
+    if (ip !== undefined) {
+        let passwd = passWordMemory.get(ip);
+        if (passwd) {
+            // return resolve("****" + passwd + "****");
+            return new Promise<string>((resolve, _) => {
+                let ret = "";
+                if (passwd) {
+                    ret = passwd;
+                }
+                resolve(ret);
+            });
+        }
+    }
     return new Promise<string>((resolve, reject) => {
         let passwordBar = vscode.window.createInputBox();
         let ret: string;
@@ -404,6 +418,7 @@ export async function getPassword(): Promise<string> {
         }
 
         passwordBar.onDidChangeValue((val: string) => {
+            passWordMemory = new Map();
             ret = val;
         });
 

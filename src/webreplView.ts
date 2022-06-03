@@ -37,7 +37,7 @@ export class WebreplProvider implements vscode.TreeDataProvider<WebreplItem> {
             } else {
                 this.changeState = 0;
             }
-            return this.fileNames.filter(name => name.includes('\.')).map(name => new WebreplItem(name, "", "", WebreplItemType.file));
+            return this.fileNames.filter(name => name.includes('\.')).map(name => new WebreplItem(name, "", "", WebreplItemType.file, element.label));
         } else {
             let ipList = TerminalWrapper.getWebDeviceList(); 
             let viewList = ipList.map(ip => new WebreplItem(ip, "", "", WebreplItemType.device));
@@ -62,6 +62,7 @@ export class WebreplItem extends vscode.TreeItem {
         public readonly tooltip: string,
         public readonly desc: string,
         public readonly type: WebreplItemType,
+        public readonly parent?: string
     ) {
         let collapsibleStatus;
         if (type === WebreplItemType.device) {
@@ -83,6 +84,14 @@ export class WebreplItem extends vscode.TreeItem {
             this.iconPath = new vscode.ThemeIcon('file-code');
         } else {
             this.iconPath = new vscode.ThemeIcon('folder');
+        }
+
+        if (this.type === WebreplItemType.file) {
+            this.command = {
+                title: "Open This File",
+                command: "emp.port.webrepl_download_file",
+                arguments: [label, parent]
+            };
         }
     }
 

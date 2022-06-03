@@ -11,6 +11,8 @@ import { TerminalWrapper } from "./terminal";
 import { UI } from "./ui";
 import { WifiUtil } from "./wifi";
 
+const TEMP_FILE_DIR_PATH = "/tmp/esp32-micropython/";
+
 // Here remote stands for serial connected device
 export class ConnectionUtil {
   private static readonly message = new Message("connection util");
@@ -39,6 +41,9 @@ export class ConnectionUtil {
       }),
       vscode.commands.registerCommand("emp.port.download_file", (fileName, port) => {
         this.downloadFileViaSerialPort(fileName, port);
+      }),
+      vscode.commands.registerCommand("emp.port.webrepl_download_file", (fileName, ip) => {
+          this.downloadFileViaWebrepl(fileName, ip);
       })
     ];
   }
@@ -47,6 +52,71 @@ export class ConnectionUtil {
     for (const cmd of this.registerAllCommands()) {
       this.context.subscriptions.push(cmd);
     }
+  }
+
+  async downloadFileViaWebrepl(fileName: string, ip: string) {
+    const passwd = await getPassword(ip);
+    const scriptPath = vscode.window.activeTextEditor?.document.fileName;
+    const webreplCliPath = this.context.asAbsolutePath("webrepl/webrepl_cli.py");
+    const cmd = [
+        "python",
+        webreplCliPath,
+        "-p",
+        passwd,
+        ip + ":/" + fileName,
+        TEMP_FILE_DIR_PATH + fileName,
+    ].join(" ");
+    TerminalWrapper.suspendWebDevice(ip);
+    let handle = exec(cmd);
+    console.log(cmd);
+    TerminalWrapper.letOfficialTakeOver(ip, handle);
+    handle.on("exit", () => {
+        TerminalWrapper.letSelfMaintainedTakeOver(ip);
+        TerminalWrapper.wakenWebDevice(ip, false);
+        vscode.workspace.openTextDocument("/tmp/esp32-micropython/" + fileName).then((doc) => {
+            console.debug("showing file " + doc);
+            vscode.window.showTextDocument(doc);
+            vscode.workspace.onDidSaveTextDocument((e) => {
+                console.debug("saving file " + e.fileName);
+                if (e.fileName === "/tmp/esp32-micropython/" + fileName) {
+                    this.uploadFileViaWebrepl(fileName, ip);
+                }
+            });
+        });
+    });
+  }
+
+  async uploadFileViaWebrepl(fileName: string, ip: string) {
+    const passwd = await getPassword(ip);
+    console.log("passwd: " + passwd);
+    const scriptPath = vscode.window.activeTextEditor?.document.fileName;
+    const webreplCliPath = this.context.asAbsolutePath("webrepl/webrepl_cli.py");
+    const cmd = [
+        "python",
+        webreplCliPath,
+        "-p",
+        passwd,
+        TEMP_FILE_DIR_PATH + fileName,
+        ip + ":/" + fileName,
+    ].join(" ");
+    TerminalWrapper.suspendWebDevice(ip);
+    let handle = exec(cmd);
+    console.log(cmd);
+    TerminalWrapper.letOfficialTakeOver(ip, handle);
+    handle.on("exit", () => {
+        TerminalWrapper.letSelfMaintainedTakeOver(ip);
+        TerminalWrapper.wakenWebDevice(ip, false);
+        // vscode.workspace.openTextDocument("/tmp/esp32-micropython/" + fileName).then((doc) => {
+        //     console.debug("showing file " + doc);
+        //     vscode.window.showTextDocument(doc);
+        //     vscode.workspace.onDidSaveTextDocument((e) => {
+        //         console.debug("saving file " + e.fileName);
+        //         if (e.fileName === "/tmp/esp32-micropython/" + fileName) {
+        //             this.uploadFileViaWebrepl(fileName, ip);
+        //         }
+        //     });
+        // });
+    });
   }
 
   async downloadFileViaSerialPort(fileName: string, port: string) {
@@ -99,16 +169,6 @@ export class ConnectionUtil {
     handle.on("exit", () => {
         TerminalWrapper.letSerialTakeOver(port); 
         TerminalWrapper.wakenSerialDevice(port, false);
-        // vscode.commands.executeCommand("vscode.open", ["~/.cache/esp32-micropython/" + fileName])
-        // vscode.workspace.openTextDocument("/home/bittervan/.cache/esp32-micropython/" + fileName).then((doc) => {
-        //     console.debug("showing file " + doc);
-        //     vscode.window.showTextDocument(doc);
-        //     vscode.workspace.onDidChangeTextDocument((e) => {
-        //         if (e.document.fileName === fileName) {
-        //             this.uploadFileViaSerialPort(fileName, port);
-        //         }
-        //     });
-        // });
     });
   }
 
@@ -140,7 +200,7 @@ export class ConnectionUtil {
     TerminalWrapper.letOfficialTakeOver(ip, handle);
     handle.on("exit", () => {
         TerminalWrapper.letSelfMaintainedTakeOver(ip);
-        TerminalWrapper.wakenWebDevice(ip);
+        TerminalWrapper.wakenWebDevice(ip, true);
     });
   }
 

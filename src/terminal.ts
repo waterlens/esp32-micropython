@@ -211,9 +211,9 @@ export class TerminalWrapper {
         device?.waken(executeFile);
     }
 
-    static wakenWebDevice(port: string) {
+    static wakenWebDevice(port: string, executeFile: boolean) {
         let device = TerminalWrapper.idDeviceMap.get(port);
-        device?.waken(true);
+        device?.waken(executeFile);
     }
 
     static getWebDeviceList() {
