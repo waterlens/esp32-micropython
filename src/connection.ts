@@ -1,4 +1,5 @@
 import { exec, execSync, spawn } from "child_process";
+import { Socket } from "dgram";
 import { readdir, readFile, writeFile } from "fs/promises";
 import path = require("path");
 import { promisify } from "util";
@@ -35,6 +36,9 @@ export class ConnectionUtil {
       }),
       vscode.commands.registerCommand("emp.remote.webrepl.execute", () => {
           this.execCurrentScriptViaNetwork();
+      }),
+      vscode.commands.registerCommand("emp.port.download_file", (fileName, port) => {
+        this.downloadFileViaSerialPort(fileName, port);
       })
     ];
   }
@@ -43,6 +47,69 @@ export class ConnectionUtil {
     for (const cmd of this.registerAllCommands()) {
       this.context.subscriptions.push(cmd);
     }
+  }
+
+  async downloadFileViaSerialPort(fileName: string, port: string) {
+    vscode.window.showInformationMessage("trying to download " + fileName);
+    const cmd = [
+        "mpremote",
+        "connect",
+        port,
+        "cp",
+        ":" + fileName,
+        "/tmp/esp32-micropython/"
+    ].join(" ");
+
+    TerminalWrapper.suspendSerialDevice(port);
+    let handle = exec(cmd);
+    console.log(cmd);
+    TerminalWrapper.letMpremoteTakeOver(port, handle);
+    handle.on("exit", () => {
+        TerminalWrapper.letSerialTakeOver(port); 
+        TerminalWrapper.wakenSerialDevice(port, false);
+        // vscode.commands.executeCommand("vscode.open", ["~/.cache/esp32-micropython/" + fileName])
+        vscode.workspace.openTextDocument("/tmp/esp32-micropython/" + fileName).then((doc) => {
+            console.debug("showing file " + doc);
+            vscode.window.showTextDocument(doc);
+            vscode.workspace.onDidSaveTextDocument((e) => {
+                console.debug("saving file " + e.fileName);
+                if (e.fileName === "/tmp/esp32-micropython/" + fileName) {
+                    this.uploadFileViaSerialPort(fileName, port);
+                }
+            });
+        });
+    });
+  }
+
+  async uploadFileViaSerialPort(fileName: string, port: string) {
+    vscode.window.showInformationMessage("trying to upload " + fileName);
+    const cmd = [
+        "mpremote",
+        "connect",
+        port,
+        "cp",
+        "/tmp/esp32-micropython/" + fileName,
+        ":" + fileName,
+    ].join(" ");
+
+    TerminalWrapper.suspendSerialDevice(port);
+    let handle = exec(cmd);
+    console.log(cmd);
+    TerminalWrapper.letMpremoteTakeOver(port, handle);
+    handle.on("exit", () => {
+        TerminalWrapper.letSerialTakeOver(port); 
+        TerminalWrapper.wakenSerialDevice(port, false);
+        // vscode.commands.executeCommand("vscode.open", ["~/.cache/esp32-micropython/" + fileName])
+        // vscode.workspace.openTextDocument("/home/bittervan/.cache/esp32-micropython/" + fileName).then((doc) => {
+        //     console.debug("showing file " + doc);
+        //     vscode.window.showTextDocument(doc);
+        //     vscode.workspace.onDidChangeTextDocument((e) => {
+        //         if (e.document.fileName === fileName) {
+        //             this.uploadFileViaSerialPort(fileName, port);
+        //         }
+        //     });
+        // });
+    });
   }
 
   async execCurrentScriptViaNetwork(ip?: string) {
@@ -101,7 +168,7 @@ export class ConnectionUtil {
     TerminalWrapper.letMpremoteTakeOver(port, handle);
     handle.on("exit", () => {
         TerminalWrapper.letSerialTakeOver(port); 
-        TerminalWrapper.wakenSerialDevice(port);
+        TerminalWrapper.wakenSerialDevice(port, true);
     });
   }
 

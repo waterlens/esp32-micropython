@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { SerialPort } from "serialport";
 import { TerminalWrapper } from "./terminal";
 import { DeviceType, serialGetFileDone, serialBuffer } from "./connectionHandler";
+import { ConnectionUtil } from "./connection";
 
 enum PortItemType {
     device,
@@ -79,7 +80,8 @@ export class PortProvider implements vscode.TreeDataProvider<PortItem> {
         } else {
             this.changeState = 0;
         }
-        return this.fileNames.filter(name => name.includes('\.')).map(name => new PortItem(name, "", "", PortItemType.file));
+        return this.fileNames.filter(name => name.includes('\.'))
+                             .map(name => new PortItem(name, "", "", PortItemType.file, element.label));
         // return nameList.then(nameList => nameList.map(name => new PortItem(name, "", "", PortItemType.file)));
     }
   }
@@ -91,9 +93,9 @@ export class PortItem extends vscode.TreeItem {
     public readonly tooltip: string,
     public readonly desc: string,
     public readonly type: PortItemType,
+    public readonly parent?: string
   ) {
     // super(label, vscode.TreeItemCollapsibleState.None);
-
         let collapsibleStatus;
         if (type === PortItemType.device) {
             collapsibleStatus = vscode.TreeItemCollapsibleState.Collapsed;
@@ -107,6 +109,14 @@ export class PortItem extends vscode.TreeItem {
 
         this.tooltip = `${label}: ${tooltip}`;
         this.description = desc;
+        if (type === PortItemType.file) {
+            this.command = {
+                title: "Open This File",
+                command: "emp.port.download_file",
+                arguments: [label, parent]
+            };
+        }
+
 
         if (this.type === PortItemType.device) {
             this.iconPath = new vscode.ThemeIcon("plug");

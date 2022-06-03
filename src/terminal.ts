@@ -78,6 +78,8 @@ export class TerminalWrapper {
 
     constructor(private context: vscode.ExtensionContext) {}
 
+
+
     register() {
         this.context.subscriptions.push(
             vscode.commands.registerCommand("emp.terminal.launch", async () => {
@@ -144,6 +146,7 @@ export class TerminalWrapper {
         device?.suspend();
     }
 
+    // actually, this is get file list..
     static getDeviceFiles(address: string, type: DeviceType, path?: string): void {
         let device = TerminalWrapper.idDeviceMap.get(address);
         if (!device) {
@@ -160,6 +163,11 @@ export class TerminalWrapper {
 
         }
     }
+
+    // // this function download remote file to local folder, so we can edit them directly
+    // static downloadFile(fileName: string) {
+    //     vscode.window.showInformationMessage("trying to open" + fileName);
+    // }
 
     static letMpremoteTakeOver(port: string, handle: ChildProcess) {
         // let token = new DeviceId(DeviceType.serialDevice, port);
@@ -198,9 +206,9 @@ export class TerminalWrapper {
         }
     }
 
-    static wakenSerialDevice(port: string) {
+    static wakenSerialDevice(port: string, executeFile: boolean) {
         let device = TerminalWrapper.idDeviceMap.get(port);
-        device?.waken(true);
+        device?.waken(executeFile);
     }
 
     static wakenWebDevice(port: string) {

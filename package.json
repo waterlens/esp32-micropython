@@ -197,7 +197,7 @@
                 {
                     "id": "esp32-micropython",
                     "title": "ESP32 MicroPython",
-                    "icon": "$(list-flat)"
+                    "icon": "./assets/icons/logo.svg"
                 }
             ]
         },
