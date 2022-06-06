@@ -8,6 +8,7 @@ enum PortItemType {
     device,
     folder,
     file,
+    create,
 }
 
 export class PortProvider implements vscode.TreeDataProvider<PortItem> {
@@ -80,8 +81,10 @@ export class PortProvider implements vscode.TreeDataProvider<PortItem> {
         } else {
             this.changeState = 0;
         }
-        return this.fileNames.filter(name => name.includes('\.'))
+        let ret = this.fileNames.filter(name => name.includes('\.'))
                              .map(name => new PortItem(name, "", "", PortItemType.file, element.label));
+        ret.push(new PortItem("Create New File", "", "", PortItemType.create, element.label));
+        return ret;
         // return nameList.then(nameList => nameList.map(name => new PortItem(name, "", "", PortItemType.file)));
     }
   }
@@ -99,7 +102,7 @@ export class PortItem extends vscode.TreeItem {
         let collapsibleStatus;
         if (type === PortItemType.device) {
             collapsibleStatus = vscode.TreeItemCollapsibleState.Collapsed;
-        } else if (type === PortItemType.file) {
+        } else if (type === PortItemType.file || type === PortItemType.create) {
             collapsibleStatus = vscode.TreeItemCollapsibleState.None;
         } else {
             collapsibleStatus = vscode.TreeItemCollapsibleState.Expanded;
@@ -115,6 +118,12 @@ export class PortItem extends vscode.TreeItem {
                 command: "emp.port.download_file",
                 arguments: [label, parent]
             };
+        } else if (type === PortItemType.create) {
+            this.command = {
+                title: "Create a New File",
+                command: "emp.port.create_file",
+                arguments: [label, parent]
+            };
         }
 
 
@@ -122,6 +131,8 @@ export class PortItem extends vscode.TreeItem {
             this.iconPath = new vscode.ThemeIcon("plug");
         } else if (this.type === PortItemType.file) {
             this.iconPath = new vscode.ThemeIcon('file-code');
+        } else if (this.type === PortItemType.create) {
+            this.iconPath = new vscode.ThemeIcon('new-file');
         } else {
             this.iconPath = new vscode.ThemeIcon('folder');
         }
