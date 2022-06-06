@@ -1,0 +1,1 @@
+export const TEMP_FILE_DIR_PATH = "/tmp/esp32-micropython/";

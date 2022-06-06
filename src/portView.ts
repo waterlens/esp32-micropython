@@ -3,6 +3,7 @@ import { SerialPort } from "serialport";
 import { TerminalWrapper } from "./terminal";
 import { DeviceType, serialGetFileDone, serialBuffer } from "./connectionHandler";
 import { ConnectionUtil } from "./connection";
+import { TEMP_FILE_DIR_PATH } from "./config";
 
 enum PortItemType {
     device,
@@ -40,6 +41,11 @@ export class PortProvider implements vscode.TreeDataProvider<PortItem> {
   private fileNames: string[] = [];
 
   constructor(context: vscode.ExtensionContext) {
+    // if (vscode.workspace.fs.createDirectory) {
+    //   console.log('there is a folder')
+    // }
+    let folderUri = vscode.Uri.file(TEMP_FILE_DIR_PATH)
+    vscode.workspace.fs.createDirectory(folderUri);
     this.context = context;
     serialGetFileDone.event(() => {
         this.fileNames = serialBuffer;
@@ -122,7 +128,7 @@ export class PortItem extends vscode.TreeItem {
             this.command = {
                 title: "Create a New File",
                 command: "emp.port.create_file",
-                arguments: [label, parent]
+                arguments: [parent]
             };
         }
 

@@ -96,19 +96,20 @@ export class SerialDevice implements EmpDevice {
             if (this.readingFile) {
                 this.readingBuffer = this.readingBuffer.concat(data.toString());
                 if (data.toString().includes("]")) {
-                    serialBuffer = this.readingBuffer.split(",")
-                                                  .slice(1)
-                                                  .filter(val => val.includes('\''))
-                                                  .map(val => {
-                                                      return val.slice(2, val.length - 1);
-                                                  })
-                                                  .map(val => {
-                                                      if (val.includes('\'')) {
-                                                          return val.slice(0, val.indexOf("\'"));
-                                                      } else {
-                                                          return val;
-                                                      }
-                                                  });
+                    // serialBuffer = this.readingBuffer.split(",")
+                    //                               .slice(1)
+                    //                               .filter(val => val.includes('\''))
+                    //                               .map(val => {
+                    //                                   return val.slice(2, val.length - 1);
+                    //                               })
+                    //                               .map(val => {
+                    //                                   if (val.includes('\'')) {
+                    //                                       return val.slice(0, val.indexOf("\'"));
+                    //                                   } else {
+                    //                                       return val;
+                    //                                   }
+                    //                               });
+                    serialBuffer = rawToFileList(this.readingBuffer);
                     this.readingFile = false;
                     serialGetFileDone.fire("done");
                 }
@@ -151,19 +152,20 @@ export class SerialDevice implements EmpDevice {
             if (this.readingFile) {
                 this.readingBuffer = this.readingBuffer.concat(data.toString());
                 if (data.toString().includes("]")) {
-                    serialBuffer = this.readingBuffer.split(",")
-                                                  .slice(1)
-                                                  .filter(val => val.includes('\''))
-                                                  .map(val => {
-                                                      return val.slice(2, val.length - 1);
-                                                  })
-                                                  .map(val => {
-                                                      if (val.includes('\'')) {
-                                                          return val.slice(0, val.indexOf("\'"));
-                                                      } else {
-                                                          return val;
-                                                      }
-                                                  });
+                    // serialBuffer = this.readingBuffer.split(",")
+                    //                             //   .slice(1)
+                    //                               .filter(val => val.includes('\''))
+                    //                               .map(val => {
+                    //                                   return val.slice(2, val.length - 1);
+                    //                               })
+                    //                               .map(val => {
+                    //                                   if (val.includes('\'')) {
+                    //                                       return val.slice(0, val.indexOf("\'"));
+                    //                                   } else {
+                    //                                       return val;
+                    //                                   }
+                    //                               });
+                    serialBuffer = rawToFileList(this.readingBuffer);
                     this.readingFile = false;
                     serialGetFileDone.fire("done");
                 }
@@ -242,19 +244,21 @@ export class WebDevice implements EmpDevice {
             if (this.readingFile) {
                 this.readingBuffer = this.readingBuffer.concat(data.toString());
                 if (data.toString().includes("]")) {
-                    webBuffer = this.readingBuffer.split(",")
-                                                  .slice(1)
-                                                  .filter(val => val.includes('\''))
-                                                  .map(val => {
-                                                      return val.slice(2, val.length - 1);
-                                                  })
-                                                  .map(val => {
-                                                      if (val.endsWith('\'')) {
-                                                          return val.slice(0, val.length - 1);
-                                                      } else {
-                                                          return val;
-                                                      }
-                                                  });
+                    // this.readingBuffer = this.readingBuffer.slice(this.readingBuffer.indexOf("["));
+                    // webBuffer = this.readingBuffer.split(",")
+                    //                             //   .slice(1)
+                    //                               .filter(val => val.includes('\''))
+                    //                               .map(val => {
+                    //                                   return val.slice(2, val.length - 1);
+                    //                               })
+                    //                               .map(val => {
+                    //                                   if (val.endsWith('\'')) {
+                    //                                       return val.slice(0, val.length - 1);
+                    //                                   } else {
+                    //                                       return val;
+                    //                                   }
+                    //                               });
+                    webBuffer = rawToFileList(this.readingBuffer)
                     this.readingFile = false;
                     webGetFileDone.fire("done");
                 }
@@ -286,19 +290,21 @@ export class WebDevice implements EmpDevice {
                 this.readingBuffer = this.readingBuffer.concat(data.toString());
                 if (data.toString().includes("]")) {
                     // webBuffer = this.readingBuffer.split(",");
-                    webBuffer = this.readingBuffer.split(",")
-                                                  .slice(1)
-                                                  .filter(val => val.includes('\''))
-                                                  .map(val => {
-                                                      return val.slice(2, val.length - 1);
-                                                  })
-                                                  .map(val => {
-                                                      if (val.endsWith('\'')) {
-                                                          return val.slice(0, val.length - 1);
-                                                      } else {
-                                                          return val;
-                                                      }
-                                                  });
+                    // this.readingBuffer = this.readingBuffer.slice(this.readingBuffer.indexOf("["))
+                    // webBuffer = this.readingBuffer.split(",")
+                    //                               .slice(1)
+                    //                               .filter(val => val.includes('\''))
+                    //                               .map(val => {
+                    //                                   return val.slice(2, val.length - 1);
+                    //                               })
+                    //                               .map(val => {
+                    //                                   if (val.endsWith('\'')) {
+                    //                                       return val.slice(0, val.length - 1);
+                    //                                   } else {
+                    //                                       return val;
+                    //                                   }
+                    //                               });
+                    webBuffer = rawToFileList(this.readingBuffer)
                     this.readingFile = false;
                     webGetFileDone.fire("done");
                 }
@@ -481,4 +487,22 @@ export async function getSerialPort(): Promise<string> {
         );
         quickPick.show();
         });
+}
+
+function rawToFileList(raw: string) : string[] {
+    console.log("the raw string is ***" + raw + "***");
+    let pos1 = raw.indexOf('[');
+    let pos2 = raw.indexOf(']');
+    console.log(pos1);
+    console.log(pos2);
+    raw = raw.slice(pos1 + 1,pos2);
+    console.log("***" + raw + "***");
+    let ret = raw.split(',').map((val) => {
+        val = val.trim();
+        return val.slice(1, val.length - 1);
+    }).filter((val) => {
+        return val.indexOf('.') != -1;
+    })
+    console.log(ret);
+    return ret;
 }

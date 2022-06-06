@@ -2,7 +2,7 @@ import { exec, execSync, spawn } from "child_process";
 import { Socket } from "dgram";
 import { readdir, readFile, writeFile } from "fs/promises";
 import path = require("path");
-import { promisify } from "util";
+import { promisify, TextEncoder } from "util";
 import * as vscode from "vscode";
 import { getIpAddr, getPassword } from "./connectionHandler";
 import { ExternalCommand } from "./extCmd";
@@ -10,8 +10,8 @@ import { Message } from "./message";
 import { TerminalWrapper } from "./terminal";
 import { UI } from "./ui";
 import { WifiUtil } from "./wifi";
-
-const TEMP_FILE_DIR_PATH = "/tmp/esp32-micropython/";
+import { TEMP_FILE_DIR_PATH } from "./config"
+import { resolve } from "path";
 
 // Here remote stands for serial connected device
 export class ConnectionUtil {
@@ -42,15 +42,79 @@ export class ConnectionUtil {
       vscode.commands.registerCommand("emp.port.download_file", (fileName, port) => {
         this.downloadFileViaSerialPort(fileName, port);
       }),
+      vscode.commands.registerCommand("emp.port.create_file", (port) => {
+        this.createFileAndBind(port);
+      }),
       vscode.commands.registerCommand("emp.port.webrepl_download_file", (fileName, ip) => {
           this.downloadFileViaWebrepl(fileName, ip);
-      })
+      }),
+      vscode.commands.registerCommand("emp.port.webrepl_create_file", (ip) => {
+        this.createFileAndBindToWebrepl(ip);
+      }),
     ];
   }
 
   register() {
     for (const cmd of this.registerAllCommands()) {
       this.context.subscriptions.push(cmd);
+    }
+  }
+
+  async createFileAndBindToWebrepl(ip: string) {
+     const fileName = await vscode.window.showInputBox({
+      prompt: "Enter the New File Name",
+      password: false,
+    })
+    if (fileName !== undefined) {
+      const newFilePath  = vscode.Uri.file(TEMP_FILE_DIR_PATH + fileName);
+      vscode.workspace.fs.writeFile(newFilePath, new TextEncoder().encode("# this is a file created by esp32-micropython!\n")).then(() => {
+        vscode.workspace.openTextDocument(newFilePath).then((doc) => {
+          console.debug("showing file " + doc);
+          vscode.window.showTextDocument(doc);
+          vscode.workspace.onDidSaveTextDocument((e) => {
+              console.debug("saving file " + e.fileName);
+              if (e.fileName === TEMP_FILE_DIR_PATH + fileName) {
+                  this.uploadFileViaWebrepl(fileName, ip);
+                  new Promise( resolve => {
+                    setTimeout(resolve, 500)
+                  }).then(() => {
+                    vscode.commands.executeCommand("emp.port.refresh");
+                  })
+              }
+          });
+        })
+      })
+    } else {
+      vscode.window.showErrorMessage("Please Enter a Valid File Name!");
+    }
+  }
+
+  async createFileAndBind(port: string) {
+    const fileName = await vscode.window.showInputBox({
+      prompt: "Enter the New File Name",
+      password: false,
+    })
+    if (fileName !== undefined) {
+      const newFilePath  = vscode.Uri.file(TEMP_FILE_DIR_PATH + fileName);
+      vscode.workspace.fs.writeFile(newFilePath, new TextEncoder().encode("# this is a file created by esp32-micropython!\n")).then(() => {
+        vscode.workspace.openTextDocument(newFilePath).then((doc) => {
+          console.debug("showing file " + doc);
+          vscode.window.showTextDocument(doc);
+          vscode.workspace.onDidSaveTextDocument((e) => {
+              console.debug("saving file " + e.fileName);
+              if (e.fileName === TEMP_FILE_DIR_PATH + fileName) {
+                  this.uploadFileViaSerialPort(fileName, port);
+                  new Promise( resolve => {
+                    setTimeout(resolve, 500)
+                  }).then(() => {
+                    vscode.commands.executeCommand("emp.port.refresh");
+                  })
+              }
+          });
+        })
+      })
+    } else {
+      vscode.window.showErrorMessage("Please Enter a Valid File Name!");
     }
   }
 
@@ -73,12 +137,12 @@ export class ConnectionUtil {
     handle.on("exit", () => {
         TerminalWrapper.letSelfMaintainedTakeOver(ip);
         TerminalWrapper.wakenWebDevice(ip, false);
-        vscode.workspace.openTextDocument("/tmp/esp32-micropython/" + fileName).then((doc) => {
+        vscode.workspace.openTextDocument(TEMP_FILE_DIR_PATH + fileName).then((doc) => {
             console.debug("showing file " + doc);
             vscode.window.showTextDocument(doc);
             vscode.workspace.onDidSaveTextDocument((e) => {
                 console.debug("saving file " + e.fileName);
-                if (e.fileName === "/tmp/esp32-micropython/" + fileName) {
+                if (e.fileName === TEMP_FILE_DIR_PATH + fileName) {
                     this.uploadFileViaWebrepl(fileName, ip);
                 }
             });
