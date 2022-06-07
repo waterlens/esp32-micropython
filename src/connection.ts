@@ -142,7 +142,7 @@ export class ConnectionUtil {
     TerminalWrapper.suspendWebDevice(ip);
     let handle = exec(cmd);
     console.log(cmd);
-    TerminalWrapper.letOfficialTakeOver(ip, handle);
+    TerminalWrapper.letOfficialTakeOver(ip, handle, false);
     handle.on("exit", () => {
         TerminalWrapper.letSelfMaintainedTakeOver(ip);
         TerminalWrapper.wakenWebDevice(ip, false);
@@ -175,7 +175,7 @@ export class ConnectionUtil {
     TerminalWrapper.suspendWebDevice(ip);
     let handle = exec(cmd);
     console.log(cmd);
-    TerminalWrapper.letOfficialTakeOver(ip, handle);
+    TerminalWrapper.letOfficialTakeOver(ip, handle, false);
     handle.on("exit", () => {
         TerminalWrapper.letSelfMaintainedTakeOver(ip);
         TerminalWrapper.wakenWebDevice(ip, false);
@@ -206,7 +206,7 @@ export class ConnectionUtil {
     TerminalWrapper.suspendSerialDevice(port);
     let handle = exec(cmd);
     console.log(cmd);
-    TerminalWrapper.letMpremoteTakeOver(port, handle);
+    TerminalWrapper.letMpremoteTakeOver(port, handle, false);
     handle.on("exit", () => {
         TerminalWrapper.letSerialTakeOver(port); 
         TerminalWrapper.wakenSerialDevice(port, false);
@@ -238,7 +238,7 @@ export class ConnectionUtil {
     TerminalWrapper.suspendSerialDevice(port);
     let handle = exec(cmd);
     console.log(cmd);
-    TerminalWrapper.letMpremoteTakeOver(port, handle);
+    TerminalWrapper.letMpremoteTakeOver(port, handle, false);
     handle.on("exit", () => {
         TerminalWrapper.letSerialTakeOver(port); 
         TerminalWrapper.wakenSerialDevice(port, false);
@@ -275,7 +275,7 @@ export class ConnectionUtil {
     TerminalWrapper.suspendWebDevice(ip);
     let handle = exec(cmd);
     console.log(cmd);
-    TerminalWrapper.letOfficialTakeOver(ip, handle);
+    TerminalWrapper.letOfficialTakeOver(ip, handle, false);
     handle.on("exit", () => {
 // <<<<<<< HEAD
         TerminalWrapper.letSelfMaintainedTakeOver(ip);
@@ -303,7 +303,7 @@ export class ConnectionUtil {
     TerminalWrapper.suspendSerialDevice(port);
     let handle = exec(cmd);
     console.log(cmd);
-    TerminalWrapper.letMpremoteTakeOver(port, handle);
+    TerminalWrapper.letMpremoteTakeOver(port, handle, false);
     handle.on("exit", () => {
 // <<<<<<< HEAD
         TerminalWrapper.letSerialTakeOver(port); 
