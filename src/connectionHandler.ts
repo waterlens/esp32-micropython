@@ -6,6 +6,17 @@ import { openStdin } from "process";
 // import { WebSocket } from "ws";
 import * as WebSocket from 'ws';
 import { time } from "console";
+import { exec } from "child_process";
+import { promisify } from "util";
+import { setFlagsFromString } from "v8";
+import EventEmitter from "events";
+import { resolve } from "path";
+
+export let serialGetFileDone = new vscode.EventEmitter<string>();
+export let webGetFileDone = new vscode.EventEmitter<string>();
+export let webBuffer: string[] = [];
+export let serialBuffer: string[] = [];
+
 
 export enum DeviceType {
     webDevice,
@@ -42,7 +53,9 @@ export interface EmpDevice {
     detachTerminal(terminal: EmpTerminal): void;
     isConnected(): boolean;
     suspend(): void;
-    waken(): void;
+    waken(executeFile?: boolean): void;
+    getFiles(path?: string): void;
+    type(): DeviceType;
 }
 
 export class SerialDevice implements EmpDevice {
@@ -52,7 +65,20 @@ export class SerialDevice implements EmpDevice {
         }
     }; 
 
-    waken(): void {
+    type(): DeviceType {
+        return DeviceType.serialDevice;
+    }
+
+    getFiles(path?: string): void {
+        this.readingFile = true;
+        this.readingBuffer = "";
+        this.serialPort.write("import os\r\nos.listdir()\r\n");
+    }
+
+    private readingBuffer = "";
+    private readingFile = false;
+
+    waken(executeFile?: boolean): void {
         this.eliminateResetInfo = true;
         this.suspended = false;
         this.serialPort = new SerialPort({
@@ -62,9 +88,32 @@ export class SerialDevice implements EmpDevice {
         });
 
         // this.serialPort.write("\r\nimport __tmp__\r\n");
-        this.serialPort.write('\r\nexec(open("__tmp__").read())\r\n');
+        if (executeFile) {
+            this.serialPort.write('\r\nexec(open("__tmp__").read())\r\n');
+        }
 
         this.serialPort.on("data", (data) => {
+            if (this.readingFile) {
+                this.readingBuffer = this.readingBuffer.concat(data.toString());
+                if (data.toString().includes("]")) {
+                    // serialBuffer = this.readingBuffer.split(",")
+                    //                               .slice(1)
+                    //                               .filter(val => val.includes('\''))
+                    //                               .map(val => {
+                    //                                   return val.slice(2, val.length - 1);
+                    //                               })
+                    //                               .map(val => {
+                    //                                   if (val.includes('\'')) {
+                    //                                       return val.slice(0, val.indexOf("\'"));
+                    //                                   } else {
+                    //                                       return val;
+                    //                                   }
+                    //                               });
+                    serialBuffer = rawToFileList(this.readingBuffer);
+                    this.readingFile = false;
+                    serialGetFileDone.fire("done");
+                }
+            }
             this.onTerminalData(data.toString());
         });
 
@@ -100,6 +149,27 @@ export class SerialDevice implements EmpDevice {
 
         this.serialPort.on("data", (data) => {
             this.onTerminalData(data.toString());
+            if (this.readingFile) {
+                this.readingBuffer = this.readingBuffer.concat(data.toString());
+                if (data.toString().includes("]")) {
+                    // serialBuffer = this.readingBuffer.split(",")
+                    //                             //   .slice(1)
+                    //                               .filter(val => val.includes('\''))
+                    //                               .map(val => {
+                    //                                   return val.slice(2, val.length - 1);
+                    //                               })
+                    //                               .map(val => {
+                    //                                   if (val.includes('\'')) {
+                    //                                       return val.slice(0, val.indexOf("\'"));
+                    //                                   } else {
+                    //                                       return val;
+                    //                                   }
+                    //                               });
+                    serialBuffer = rawToFileList(this.readingBuffer);
+                    this.readingFile = false;
+                    serialGetFileDone.fire("done");
+                }
+            }
         });
         this.serialPort.on('close', () => {
             if (this.suspended) {
@@ -145,6 +215,8 @@ export class WebDevice implements EmpDevice {
     linkedTerminals: Array<EmpTerminal>;
     webSocket: WebSocket;
     connectStatus = false;
+    readingFile = false;
+    readingBuffer = "";
     private suspended = false;
 
     onTerminalData = (data: string) => {
@@ -163,18 +235,42 @@ export class WebDevice implements EmpDevice {
     }
 
     // wake and execute the transmitted file
-    waken(): void {
+    waken(executeFile?: boolean): void {
         this.suspended = false;
         // this.linkedTerminals = new Array();
         this.webSocket = new WebSocket("ws://" + this.devicePath + ":8266");
         this.webSocket.binaryType = 'arraybuffer';
         this.webSocket.on('message', (data) => {
+            if (this.readingFile) {
+                this.readingBuffer = this.readingBuffer.concat(data.toString());
+                if (data.toString().includes("]")) {
+                    // this.readingBuffer = this.readingBuffer.slice(this.readingBuffer.indexOf("["));
+                    // webBuffer = this.readingBuffer.split(",")
+                    //                             //   .slice(1)
+                    //                               .filter(val => val.includes('\''))
+                    //                               .map(val => {
+                    //                                   return val.slice(2, val.length - 1);
+                    //                               })
+                    //                               .map(val => {
+                    //                                   if (val.endsWith('\'')) {
+                    //                                       return val.slice(0, val.length - 1);
+                    //                                   } else {
+                    //                                       return val;
+                    //                                   }
+                    //                               });
+                    webBuffer = rawToFileList(this.readingBuffer)
+                    this.readingFile = false;
+                    webGetFileDone.fire("done");
+                }
+            }
             this.onTerminalData(data.toString());
             console.log(data);
         }); 
         this.webSocket.on('open', () => {
             this.webSocket.send(this.password + '\r\n');
-            this.webSocket.send('\r\nexec(open("__tmp__").read())\r\n');
+            if (executeFile) {
+                this.webSocket.send('\r\nexec(open("__tmp__").read())\r\n');
+            }
         });
         this.connectStatus = true;
         this.webSocket.on('close', () => {
@@ -190,6 +286,29 @@ export class WebDevice implements EmpDevice {
         this.webSocket.binaryType = 'arraybuffer';
         this.webSocket.on('message', (data) => {
             this.onTerminalData(data.toString());
+            if (this.readingFile) {
+                this.readingBuffer = this.readingBuffer.concat(data.toString());
+                if (data.toString().includes("]")) {
+                    // webBuffer = this.readingBuffer.split(",");
+                    // this.readingBuffer = this.readingBuffer.slice(this.readingBuffer.indexOf("["))
+                    // webBuffer = this.readingBuffer.split(",")
+                    //                               .slice(1)
+                    //                               .filter(val => val.includes('\''))
+                    //                               .map(val => {
+                    //                                   return val.slice(2, val.length - 1);
+                    //                               })
+                    //                               .map(val => {
+                    //                                   if (val.endsWith('\'')) {
+                    //                                       return val.slice(0, val.length - 1);
+                    //                                   } else {
+                    //                                       return val;
+                    //                                   }
+                    //                               });
+                    webBuffer = rawToFileList(this.readingBuffer)
+                    this.readingFile = false;
+                    webGetFileDone.fire("done");
+                }
+            }
             console.log(data);
         }); 
         this.webSocket.on('open', () => {
@@ -201,6 +320,13 @@ export class WebDevice implements EmpDevice {
             this.connectStatus = false;
             this.onTerminalData('Connection Expired.');
         });
+    }
+
+    getFiles(path?: string): void {
+        this.readingBuffer = "";
+        webBuffer = [];
+        this.readingFile = true;
+        this.webSocket.send("import os\r\nos.listdir()\r\n");
     }
 
     sendData(data: string): void {
@@ -229,6 +355,10 @@ export class WebDevice implements EmpDevice {
             this.webSocket.close();
             this.connectStatus = false;
         }
+    }
+
+    type(): DeviceType {
+        return DeviceType.webDevice;
     }
 
 }
@@ -268,7 +398,20 @@ export class ConnectionHandler {
 let ipMemory: string[] = [];
 let passWordMemory: Map<string, string> = new Map();
 
-export async function getPassword(): Promise<string> {
+export async function getPassword(ip?: string): Promise<string> {
+    if (ip !== undefined) {
+        let passwd = passWordMemory.get(ip);
+        if (passwd) {
+            // return resolve("****" + passwd + "****");
+            return new Promise<string>((resolve, _) => {
+                let ret = "";
+                if (passwd) {
+                    ret = passwd;
+                }
+                resolve(ret);
+            });
+        }
+    }
     return new Promise<string>((resolve, reject) => {
         let passwordBar = vscode.window.createInputBox();
         let ret: string;
@@ -281,6 +424,7 @@ export async function getPassword(): Promise<string> {
         }
 
         passwordBar.onDidChangeValue((val: string) => {
+            passWordMemory = new Map();
             ret = val;
         });
 
@@ -343,4 +487,22 @@ export async function getSerialPort(): Promise<string> {
         );
         quickPick.show();
         });
+}
+
+function rawToFileList(raw: string) : string[] {
+    console.log("the raw string is ***" + raw + "***");
+    let pos1 = raw.indexOf('[');
+    let pos2 = raw.indexOf(']');
+    console.log(pos1);
+    console.log(pos2);
+    raw = raw.slice(pos1 + 1,pos2);
+    console.log("***" + raw + "***");
+    let ret = raw.split(',').map((val) => {
+        val = val.trim();
+        return val.slice(1, val.length - 1);
+    }).filter((val) => {
+        return val.indexOf('.') != -1;
+    })
+    console.log(ret);
+    return ret;
 }

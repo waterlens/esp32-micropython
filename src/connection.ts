@@ -1,8 +1,13 @@
 import { exec, execSync, spawn } from "child_process";
+import { Socket } from "dgram";
 import { readdir, readFile, writeFile } from "fs/promises";
 import path = require("path");
+// <<<<<<< HEAD
+import { promisify, TextEncoder } from "util";
+// =======
 import { openStdin } from "process";
-import { promisify } from "util";
+// import { promisify } from "util";
+// >>>>>>> main
 import * as vscode from "vscode";
 import { getIpAddr, getPassword } from "./connectionHandler";
 import { ExternalCommand } from "./extCmd";
@@ -10,6 +15,8 @@ import { Message } from "./message";
 import { TerminalWrapper } from "./terminal";
 import { UI } from "./ui";
 import { WifiUtil } from "./wifi";
+import { TEMP_FILE_DIR_PATH } from "./config";
+import { resolve } from "path";
 
 // Here remote stands for serial connected device
 export class ConnectionUtil {
@@ -35,7 +42,23 @@ export class ConnectionUtil {
         this.execCurrentScriptRemotely();
       }),
       vscode.commands.registerCommand("emp.remote.webrepl.execute", () => {
-        this.execCurrentScriptViaNetwork();
+// <<<<<<< HEAD
+          this.execCurrentScriptViaNetwork();
+      }),
+      vscode.commands.registerCommand("emp.port.download_file", (fileName, port) => {
+        this.downloadFileViaSerialPort(fileName, port);
+      }),
+      vscode.commands.registerCommand("emp.port.create_file", (port) => {
+        this.createFileAndBind(port);
+      }),
+      vscode.commands.registerCommand("emp.port.webrepl_download_file", (fileName, ip) => {
+          this.downloadFileViaWebrepl(fileName, ip);
+      }),
+      vscode.commands.registerCommand("emp.port.webrepl_create_file", (ip) => {
+        this.createFileAndBindToWebrepl(ip);
+// =======
+        // this.execCurrentScriptViaNetwork();
+// >>>>>>> main
       }),
     ];
   }
@@ -44,6 +67,182 @@ export class ConnectionUtil {
     for (const cmd of this.registerAllCommands()) {
       this.context.subscriptions.push(cmd);
     }
+  }
+
+  async createFileAndBindToWebrepl(ip: string) {
+     const fileName = await vscode.window.showInputBox({
+      prompt: "Enter the New File Name",
+      password: false,
+    });
+    if (fileName !== undefined) {
+      const newFilePath  = vscode.Uri.file(TEMP_FILE_DIR_PATH + fileName);
+      vscode.workspace.fs.writeFile(newFilePath, new TextEncoder().encode("# this is a file created by esp32-micropython!\n")).then(() => {
+        vscode.workspace.openTextDocument(newFilePath).then((doc) => {
+          console.debug("showing file " + doc);
+          vscode.window.showTextDocument(doc);
+          vscode.workspace.onDidSaveTextDocument((e) => {
+              console.debug("saving file " + e.fileName);
+              if (e.fileName === TEMP_FILE_DIR_PATH + fileName) {
+                  this.uploadFileViaWebrepl(fileName, ip);
+                  new Promise( resolve => {
+                    setTimeout(resolve, 3000);
+                  }).then(() => {
+                    vscode.commands.executeCommand("emp.web_port.refresh");
+                  });
+              }
+          });
+        });
+      });
+    } else {
+      vscode.window.showErrorMessage("Please Enter a Valid File Name!");
+    }
+  }
+
+  async createFileAndBind(port: string) {
+    const fileName = await vscode.window.showInputBox({
+      prompt: "Enter the New File Name",
+      password: false,
+    });
+    if (fileName !== undefined) {
+      const newFilePath  = vscode.Uri.file(TEMP_FILE_DIR_PATH + fileName);
+      vscode.workspace.fs.writeFile(newFilePath, new TextEncoder().encode("# this is a file created by esp32-micropython!\n")).then(() => {
+        vscode.workspace.openTextDocument(newFilePath).then((doc) => {
+          console.debug("showing file " + doc);
+          vscode.window.showTextDocument(doc);
+          vscode.workspace.onDidSaveTextDocument((e) => {
+              console.debug("saving file " + e.fileName);
+              if (e.fileName === TEMP_FILE_DIR_PATH + fileName) {
+                  this.uploadFileViaSerialPort(fileName, port);
+                  new Promise( resolve => {
+                    setTimeout(resolve, 500);
+                  }).then(() => {
+                    vscode.commands.executeCommand("emp.port.refresh");
+                  });
+              }
+          });
+        });
+      });
+    } else {
+      vscode.window.showErrorMessage("Please Enter a Valid File Name!");
+    }
+  }
+
+  async downloadFileViaWebrepl(fileName: string, ip: string) {
+    const passwd = await getPassword(ip);
+    const scriptPath = vscode.window.activeTextEditor?.document.fileName;
+    const webreplCliPath = this.context.asAbsolutePath("webrepl/webrepl_cli.py");
+    const cmd = [
+        "python",
+        webreplCliPath,
+        "-p",
+        passwd,
+        ip + ":/" + fileName,
+        TEMP_FILE_DIR_PATH + fileName,
+    ].join(" ");
+    TerminalWrapper.suspendWebDevice(ip);
+    let handle = exec(cmd);
+    console.log(cmd);
+    TerminalWrapper.letOfficialTakeOver(ip, handle);
+    handle.on("exit", () => {
+        TerminalWrapper.letSelfMaintainedTakeOver(ip);
+        TerminalWrapper.wakenWebDevice(ip, false);
+        vscode.workspace.openTextDocument(TEMP_FILE_DIR_PATH + fileName).then((doc) => {
+            console.debug("showing file " + doc);
+            vscode.window.showTextDocument(doc);
+            vscode.workspace.onDidSaveTextDocument((e) => {
+                console.debug("saving file " + e.fileName);
+                if (e.fileName === TEMP_FILE_DIR_PATH + fileName) {
+                    this.uploadFileViaWebrepl(fileName, ip);
+                }
+            });
+        });
+    });
+  }
+
+  async uploadFileViaWebrepl(fileName: string, ip: string) {
+    const passwd = await getPassword(ip);
+    console.log("passwd: " + passwd);
+    const scriptPath = vscode.window.activeTextEditor?.document.fileName;
+    const webreplCliPath = this.context.asAbsolutePath("webrepl/webrepl_cli.py");
+    const cmd = [
+        "python",
+        webreplCliPath,
+        "-p",
+        passwd,
+        TEMP_FILE_DIR_PATH + fileName,
+        ip + ":/" + fileName,
+    ].join(" ");
+    TerminalWrapper.suspendWebDevice(ip);
+    let handle = exec(cmd);
+    console.log(cmd);
+    TerminalWrapper.letOfficialTakeOver(ip, handle);
+    handle.on("exit", () => {
+        TerminalWrapper.letSelfMaintainedTakeOver(ip);
+        TerminalWrapper.wakenWebDevice(ip, false);
+        // vscode.workspace.openTextDocument("/tmp/esp32-micropython/" + fileName).then((doc) => {
+        //     console.debug("showing file " + doc);
+        //     vscode.window.showTextDocument(doc);
+        //     vscode.workspace.onDidSaveTextDocument((e) => {
+        //         console.debug("saving file " + e.fileName);
+        //         if (e.fileName === "/tmp/esp32-micropython/" + fileName) {
+        //             this.uploadFileViaWebrepl(fileName, ip);
+        //         }
+        //     });
+        // });
+    });
+  }
+
+  async downloadFileViaSerialPort(fileName: string, port: string) {
+    vscode.window.showInformationMessage("trying to download " + fileName);
+    const cmd = [
+        "mpremote",
+        "connect",
+        port,
+        "cp",
+        ":" + fileName,
+        "/tmp/esp32-micropython/"
+    ].join(" ");
+
+    TerminalWrapper.suspendSerialDevice(port);
+    let handle = exec(cmd);
+    console.log(cmd);
+    TerminalWrapper.letMpremoteTakeOver(port, handle);
+    handle.on("exit", () => {
+        TerminalWrapper.letSerialTakeOver(port); 
+        TerminalWrapper.wakenSerialDevice(port, false);
+        // vscode.commands.executeCommand("vscode.open", ["~/.cache/esp32-micropython/" + fileName])
+        vscode.workspace.openTextDocument("/tmp/esp32-micropython/" + fileName).then((doc) => {
+            console.debug("showing file " + doc);
+            vscode.window.showTextDocument(doc);
+            vscode.workspace.onDidSaveTextDocument((e) => {
+                console.debug("saving file " + e.fileName);
+                if (e.fileName === "/tmp/esp32-micropython/" + fileName) {
+                    this.uploadFileViaSerialPort(fileName, port);
+                }
+            });
+        });
+    });
+  }
+
+  async uploadFileViaSerialPort(fileName: string, port: string) {
+    vscode.window.showInformationMessage("trying to upload " + fileName);
+    const cmd = [
+        "mpremote",
+        "connect",
+        port,
+        "cp",
+        "/tmp/esp32-micropython/" + fileName,
+        ":" + fileName,
+    ].join(" ");
+
+    TerminalWrapper.suspendSerialDevice(port);
+    let handle = exec(cmd);
+    console.log(cmd);
+    TerminalWrapper.letMpremoteTakeOver(port, handle);
+    handle.on("exit", () => {
+        TerminalWrapper.letSerialTakeOver(port); 
+        TerminalWrapper.wakenSerialDevice(port, false);
+    });
   }
 
   async execCurrentScriptViaNetwork(ip?: string) {
@@ -78,8 +277,13 @@ export class ConnectionUtil {
     console.log(cmd);
     TerminalWrapper.letOfficialTakeOver(ip, handle);
     handle.on("exit", () => {
-      TerminalWrapper.letSelfMaintainedTakeOver(ip);
-      TerminalWrapper.wakenWebDevice(ip);
+// <<<<<<< HEAD
+        TerminalWrapper.letSelfMaintainedTakeOver(ip);
+        TerminalWrapper.wakenWebDevice(ip, true);
+// =======
+    //   TerminalWrapper.letSelfMaintainedTakeOver(ip);
+    //   TerminalWrapper.wakenWebDevice(ip);
+// >>>>>>> main
     });
   }
 
@@ -101,8 +305,13 @@ export class ConnectionUtil {
     console.log(cmd);
     TerminalWrapper.letMpremoteTakeOver(port, handle);
     handle.on("exit", () => {
-      TerminalWrapper.letSerialTakeOver(port);
-      TerminalWrapper.wakenSerialDevice(port);
+// <<<<<<< HEAD
+        TerminalWrapper.letSerialTakeOver(port); 
+        TerminalWrapper.wakenSerialDevice(port, true);
+// =======
+//       TerminalWrapper.letSerialTakeOver(port);
+//       TerminalWrapper.wakenSerialDevice(port);
+// >>>>>>> main
     });
   }
 

@@ -24,7 +24,9 @@
         "onCommand:emp.language.enable",
         "onCommand:emp.language.disable",
         "onCommand:emp.remote.serial.execute",
-        "onCommand:emp.remote.webrepl.execute"
+        "onCommand:emp.remote.webrepl.execute",
+        "onCommand:emp.remote.serial.sync",
+        "onCommand:emp.remote.webrepl.sync"
     ],
     "main": "./out/extension.js",
     "contributes": {
@@ -44,25 +46,36 @@
                     "command": "emp.language.disable",
                     "group": "navigation",
                     "when": "view == emp.port"
+                },
+                {
+                    "command": "emp.web_port.refresh",
+                    "when": "view == emp.web_port",
+                    "group": "navigation"
+                },
+                {
+                    "command": "emp.language.enable",
+                    "group": "navigation",
+                    "when": "view == emp.web_port"
+                },
+                {
+                    "command": "emp.language.disable",
+                    "group": "navigation",
+                    "when": "view == emp.web_port"
                 }
             ],
             "view/item/context": [
-                {
-                    "command": "emp.esptool.erase",
-                    "when": "view == emp.port",
-                    "group": "inline"
-                },
+
                 {
                     "command": "emp.esptool.erase",
                     "when": "view == emp.port"
                 },
+
                 {
                     "command": "emp.esptool.program",
-                    "when": "view == emp.port",
-                    "group": "inline"
+                    "when": "view == emp.port"
                 },
                 {
-                    "command": "emp.esptool.program",
+                    "command": "emp.remote.serial.sync",
                     "when": "view == emp.port"
                 }
             ]
@@ -70,6 +83,12 @@
         "commands": [
             {
                 "command": "emp.port.refresh",
+                "title": "Refresh",
+                "icon": "$(refresh)",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.web_port.refresh",
                 "title": "Refresh",
                 "icon": "$(refresh)",
                 "category": "ESP32 MicroPython"
@@ -102,6 +121,16 @@
                 "command": "emp.esptool.program",
                 "title": "Program firmware",
                 "icon": "$(circuit-board)",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.remote.serial.sync",
+                "title": "Sync Files",
+                "category": "ESP32 MicroPython"
+            },
+            {
+                "command": "emp.remote.webrepl.sync",
+                "title": "Sync Files via WebREPL",
                 "category": "ESP32 MicroPython"
             },
             {
@@ -160,7 +189,7 @@
                 {
                     "id": "esp32-micropython",
                     "title": "ESP32 MicroPython",
-                    "icon": "$(list-flat)"
+                    "icon": "./assets/icons/logo.svg"
                 }
             ]
         },
@@ -168,9 +197,15 @@
             "esp32-micropython": [
                 {
                     "id": "emp.port",
-                    "name": "Port",
+                    "name": "Serial Port",
                     "icon": "$(list-flat)",
-                    "contextualTitle": "Port"
+                    "contextualTitle": "Serial Port"
+                },
+                {
+                    "id": "emp.web_port",
+                    "name": "Web Port",
+                    "icon": "$(list-flat)",
+                    "contextualTitle": "Web Port"
                 }
             ]
         }
