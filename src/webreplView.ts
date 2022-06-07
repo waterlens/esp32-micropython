@@ -37,7 +37,15 @@ export class WebreplProvider implements vscode.TreeDataProvider<WebreplItem> {
             } else {
                 this.changeState = 0;
             }
-            return this.fileNames.filter(name => name.includes('\.')).map(name => new WebreplItem(name, "", "", WebreplItemType.file, element.label));
+            let ret = this.fileNames.filter(name => name.includes('\.')).map(name => new WebreplItem(name, "", "", WebreplItemType.file, element.label));
+            ret.push(new WebreplItem(
+                "Create a New File",
+                "",
+                "",
+                WebreplItemType.create,
+                element.label
+            ));
+            return ret;
         } else {
             let ipList = TerminalWrapper.getWebDeviceList(); 
             let viewList = ipList.map(ip => new WebreplItem(ip, "", "", WebreplItemType.device));
@@ -54,6 +62,7 @@ enum WebreplItemType {
     device,
     folder,
     file,
+    create,
 }
 
 export class WebreplItem extends vscode.TreeItem {
@@ -67,7 +76,7 @@ export class WebreplItem extends vscode.TreeItem {
         let collapsibleStatus;
         if (type === WebreplItemType.device) {
             collapsibleStatus = vscode.TreeItemCollapsibleState.Collapsed;
-        } else if (type === WebreplItemType.file) {
+        } else if (type === WebreplItemType.file || type === WebreplItemType.create ) {
             collapsibleStatus = vscode.TreeItemCollapsibleState.None;
         } else {
             collapsibleStatus = vscode.TreeItemCollapsibleState.Expanded;
@@ -82,6 +91,8 @@ export class WebreplItem extends vscode.TreeItem {
             this.iconPath = new vscode.ThemeIcon("plug");
         } else if (this.type === WebreplItemType.file) {
             this.iconPath = new vscode.ThemeIcon('file-code');
+        } else if (this.type === WebreplItemType.create) {
+            this.iconPath = new vscode.ThemeIcon('new-file');
         } else {
             this.iconPath = new vscode.ThemeIcon('folder');
         }
@@ -91,6 +102,12 @@ export class WebreplItem extends vscode.TreeItem {
                 title: "Open This File",
                 command: "emp.port.webrepl_download_file",
                 arguments: [label, parent]
+            };
+        } else if (this.type === WebreplItemType.create) {
+            this.command = {
+                title: "Create a New File",
+                command: "emp.port.webrepl_create_file",
+                arguments: [this.parent],
             };
         }
     }

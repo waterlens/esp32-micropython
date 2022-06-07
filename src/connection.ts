@@ -85,9 +85,9 @@ export class ConnectionUtil {
               if (e.fileName === TEMP_FILE_DIR_PATH + fileName) {
                   this.uploadFileViaWebrepl(fileName, ip);
                   new Promise( resolve => {
-                    setTimeout(resolve, 500);
+                    setTimeout(resolve, 3000);
                   }).then(() => {
-                    vscode.commands.executeCommand("emp.port.refresh");
+                    vscode.commands.executeCommand("emp.web_port.refresh");
                   });
               }
           });
