@@ -41,10 +41,8 @@ export class PortProvider implements vscode.TreeDataProvider<PortItem> {
   private fileNames: string[] = [];
 
   constructor(context: vscode.ExtensionContext) {
-    // if (vscode.workspace.fs.createDirectory) {
-    //   console.log('there is a folder')
-    // }
-    let folderUri = vscode.Uri.file(TEMP_FILE_DIR_PATH)
+
+    let folderUri = vscode.Uri.file(TEMP_FILE_DIR_PATH);
     vscode.workspace.fs.createDirectory(folderUri);
     this.context = context;
     serialGetFileDone.event(() => {
@@ -63,6 +61,7 @@ export class PortProvider implements vscode.TreeDataProvider<PortItem> {
   }
 
   private changeState = 0;
+  private firstTimeRefresh = 1;
 
   getChildren(element?: PortItem): vscode.ProviderResult<PortItem[]> {
     if (element === undefined) {
@@ -90,6 +89,12 @@ export class PortProvider implements vscode.TreeDataProvider<PortItem> {
         let ret = this.fileNames.filter(name => name.includes('\.'))
                              .map(name => new PortItem(name, "", "", PortItemType.file, element.label));
         ret.push(new PortItem("Create New File", "", "", PortItemType.create, element.label));
+        if (this.firstTimeRefresh) {
+            this.firstTimeRefresh = 0;
+            setTimeout(() => {
+                vscode.commands.executeCommand("emp.port.refresh");
+            }, 1000);
+        }
         return ret;
         // return nameList.then(nameList => nameList.map(name => new PortItem(name, "", "", PortItemType.file)));
     }

@@ -64,20 +64,12 @@
                 }
             ],
             "view/item/context": [
-                {
-                    "command": "emp.esptool.erase",
-                    "when": "view == emp.port",
-                    "group": "inline"
-                },
+
                 {
                     "command": "emp.esptool.erase",
                     "when": "view == emp.port"
                 },
-                {
-                    "command": "emp.esptool.program",
-                    "when": "view == emp.port",
-                    "group": "inline"
-                },
+
                 {
                     "command": "emp.esptool.program",
                     "when": "view == emp.port"
