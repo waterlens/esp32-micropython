@@ -1,0 +1,10 @@
+{
+  "web_repl": {
+    "enabled": false
+  },
+  "wlan": {
+    "enabled": false,
+    "ssid": "",
+    "password": ""
+  }
+}

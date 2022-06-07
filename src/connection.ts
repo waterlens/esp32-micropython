@@ -2,7 +2,12 @@ import { exec, execSync, spawn } from "child_process";
 import { Socket } from "dgram";
 import { readdir, readFile, writeFile } from "fs/promises";
 import path = require("path");
+// <<<<<<< HEAD
 import { promisify, TextEncoder } from "util";
+// =======
+import { openStdin } from "process";
+// import { promisify } from "util";
+// >>>>>>> main
 import * as vscode from "vscode";
 import { getIpAddr, getPassword } from "./connectionHandler";
 import { ExternalCommand } from "./extCmd";
@@ -10,7 +15,7 @@ import { Message } from "./message";
 import { TerminalWrapper } from "./terminal";
 import { UI } from "./ui";
 import { WifiUtil } from "./wifi";
-import { TEMP_FILE_DIR_PATH } from "./config"
+import { TEMP_FILE_DIR_PATH } from "./config";
 import { resolve } from "path";
 
 // Here remote stands for serial connected device
@@ -37,6 +42,7 @@ export class ConnectionUtil {
         this.execCurrentScriptRemotely();
       }),
       vscode.commands.registerCommand("emp.remote.webrepl.execute", () => {
+// <<<<<<< HEAD
           this.execCurrentScriptViaNetwork();
       }),
       vscode.commands.registerCommand("emp.port.download_file", (fileName, port) => {
@@ -50,6 +56,9 @@ export class ConnectionUtil {
       }),
       vscode.commands.registerCommand("emp.port.webrepl_create_file", (ip) => {
         this.createFileAndBindToWebrepl(ip);
+// =======
+        // this.execCurrentScriptViaNetwork();
+// >>>>>>> main
       }),
     ];
   }
@@ -64,7 +73,7 @@ export class ConnectionUtil {
      const fileName = await vscode.window.showInputBox({
       prompt: "Enter the New File Name",
       password: false,
-    })
+    });
     if (fileName !== undefined) {
       const newFilePath  = vscode.Uri.file(TEMP_FILE_DIR_PATH + fileName);
       vscode.workspace.fs.writeFile(newFilePath, new TextEncoder().encode("# this is a file created by esp32-micropython!\n")).then(() => {
@@ -76,14 +85,14 @@ export class ConnectionUtil {
               if (e.fileName === TEMP_FILE_DIR_PATH + fileName) {
                   this.uploadFileViaWebrepl(fileName, ip);
                   new Promise( resolve => {
-                    setTimeout(resolve, 500)
+                    setTimeout(resolve, 500);
                   }).then(() => {
                     vscode.commands.executeCommand("emp.port.refresh");
-                  })
+                  });
               }
           });
-        })
-      })
+        });
+      });
     } else {
       vscode.window.showErrorMessage("Please Enter a Valid File Name!");
     }
@@ -93,7 +102,7 @@ export class ConnectionUtil {
     const fileName = await vscode.window.showInputBox({
       prompt: "Enter the New File Name",
       password: false,
-    })
+    });
     if (fileName !== undefined) {
       const newFilePath  = vscode.Uri.file(TEMP_FILE_DIR_PATH + fileName);
       vscode.workspace.fs.writeFile(newFilePath, new TextEncoder().encode("# this is a file created by esp32-micropython!\n")).then(() => {
@@ -105,14 +114,14 @@ export class ConnectionUtil {
               if (e.fileName === TEMP_FILE_DIR_PATH + fileName) {
                   this.uploadFileViaSerialPort(fileName, port);
                   new Promise( resolve => {
-                    setTimeout(resolve, 500)
+                    setTimeout(resolve, 500);
                   }).then(() => {
                     vscode.commands.executeCommand("emp.port.refresh");
-                  })
+                  });
               }
           });
-        })
-      })
+        });
+      });
     } else {
       vscode.window.showErrorMessage("Please Enter a Valid File Name!");
     }
@@ -237,10 +246,13 @@ export class ConnectionUtil {
   }
 
   async execCurrentScriptViaNetwork(ip?: string) {
-    const selectedIp: string = ip || await getIpAddr();
+    const selectedIp: string = ip || (await getIpAddr());
     const password = await getPassword();
     if (!selectedIp) {
-      ConnectionUtil.message.showError("no webrepl device selected", "No webrepl selected.");
+      ConnectionUtil.message.showError(
+        "no webrepl device selected",
+        "No webrepl selected."
+      );
       return;
     } else {
       this._execCurrentScriptViaNetwork(selectedIp, password);
@@ -249,22 +261,29 @@ export class ConnectionUtil {
 
   async _execCurrentScriptViaNetwork(ip: string, password: string) {
     const scriptPath = vscode.window.activeTextEditor?.document.fileName;
-    const webreplCliPath = this.context.asAbsolutePath("webrepl/webrepl_cli.py");
+    const webreplCliPath = this.context.asAbsolutePath(
+      "webrepl/webrepl_cli.py"
+    );
     const cmd = [
-        "python",
-        webreplCliPath,
-        "-p",
-        password,
-        scriptPath,
-        ip + ":/__tmp__"
+      "python",
+      webreplCliPath,
+      "-p",
+      password,
+      scriptPath,
+      ip + ":/__tmp__",
     ].join(" ");
     TerminalWrapper.suspendWebDevice(ip);
     let handle = exec(cmd);
     console.log(cmd);
     TerminalWrapper.letOfficialTakeOver(ip, handle);
     handle.on("exit", () => {
+// <<<<<<< HEAD
         TerminalWrapper.letSelfMaintainedTakeOver(ip);
         TerminalWrapper.wakenWebDevice(ip, true);
+// =======
+    //   TerminalWrapper.letSelfMaintainedTakeOver(ip);
+    //   TerminalWrapper.wakenWebDevice(ip);
+// >>>>>>> main
     });
   }
 
@@ -280,29 +299,65 @@ export class ConnectionUtil {
 
   async _execCurrentScriptRemotely(port: string) {
     const scriptPath = vscode.window.activeTextEditor?.document.fileName;
-    const cmd = [
-      "mpremote",
-      "cp",
-      scriptPath,
-      ":/__tmp__",
-    ].join(" ");
+    const cmd = ["mpremote", "cp", scriptPath, ":/__tmp__"].join(" ");
     TerminalWrapper.suspendSerialDevice(port);
     let handle = exec(cmd);
     console.log(cmd);
     TerminalWrapper.letMpremoteTakeOver(port, handle);
     handle.on("exit", () => {
+// <<<<<<< HEAD
         TerminalWrapper.letSerialTakeOver(port); 
         TerminalWrapper.wakenSerialDevice(port, true);
+// =======
+//       TerminalWrapper.letSerialTakeOver(port);
+//       TerminalWrapper.wakenSerialDevice(port);
+// >>>>>>> main
     });
   }
 
-  async syncBasicFileWithRemote(port: string) {
+  fetchRemoteConfigFile(port: string): boolean {
+    try {
+      const scriptDirPath = this.context.asAbsolutePath("misc/to_remote");
+      const cmd = [
+        "mpremote",
+        "connect",
+        port,
+        "fs",
+        "cp",
+        ":config.json",
+        path.join(scriptDirPath, "config.json"),
+      ].join(" ");
+      console.log(cmd);
+      execSync(cmd);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
 
+  pushRemoteConfigFile(port: string): boolean {
+    try {
+      const scriptDirPath = this.context.asAbsolutePath("misc/to_remote");
+      const cmd = [
+        "mpremote",
+        "connect",
+        port,
+        "fs",
+        "cp",
+        path.join(scriptDirPath, "config.json"),
+        ":config.json",
+      ].join(" ");
+      console.log(cmd);
+      execSync(cmd);
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   async syncAllBasicFilesWithRemote(port: string) {
     try {
-      const scriptDirPath = this.context.asAbsolutePath("misc");
+      const scriptDirPath = this.context.asAbsolutePath("misc/to_remote");
       const files = await readdir(scriptDirPath);
       files.forEach((file, index) => {
         if (!file.startsWith("_")) {
@@ -326,16 +381,21 @@ export class ConnectionUtil {
     }
   }
 
-  async replaceConnectScriptStub(ap: string, pwd: string) {
+  async replaceConnectConfig(port: string, ap: string, pwd: string) {
     try {
-      const path = this.context.asAbsolutePath("misc/_connect.py");
-      const tmpPath = this.context.asAbsolutePath("misc/connect.py");
-      const content = await readFile(path, { encoding: "utf-8" });
-      const s = JSON.stringify([ap, pwd]);
-      await writeFile(
-        tmpPath,
-        content.replace(/"""__##stub##__"""/g, `"""${s}"""`)
+      const path = this.context.asAbsolutePath(
+        this.fetchRemoteConfigFile(port)
+          ? "misc/to_remote/config.json"
+          : "misc/_config.json"
       );
+      const tmpPath = this.context.asAbsolutePath("misc/to_remote/config.json");
+      const content = await readFile(path, { encoding: "utf-8" });
+
+      let newContent = JSON.parse(content);
+      newContent.wlan.ssid = ap;
+      newContent.wlan.password = pwd;
+
+      await writeFile(tmpPath, JSON.stringify(newContent));
     } catch (error) {
       ConnectionUtil.message.showError(
         "can't open code snippet for connecting",
@@ -344,10 +404,10 @@ export class ConnectionUtil {
     }
   }
 
-  async replaceWebReplConfigStub(pwd: string) {
+  async replaceWebReplConfig(pwd: string) {
     try {
       const path = this.context.asAbsolutePath("misc/_webrepl_cfg.py");
-      const tmpPath = this.context.asAbsolutePath("misc/webrepl_cfg.py");
+      const tmpPath = this.context.asAbsolutePath("misc/to_remote/webrepl_cfg.py");
       const content = await readFile(path, { encoding: "utf-8" });
       await writeFile(
         tmpPath,
@@ -361,30 +421,21 @@ export class ConnectionUtil {
     }
   }
 
-  async changeRemoteWebReplDaemonStatus(status: boolean) {
+  async changeRemoteWebReplDaemonStatus(port: string, status: boolean) {
     try {
-      const path = this.context.asAbsolutePath("misc/_boot.py");
-      const tmpPath = this.context.asAbsolutePath("misc/boot.py");
+      const path = this.context.asAbsolutePath(
+        this.fetchRemoteConfigFile(port)
+          ? "misc/to_remote/config.json"
+          : "misc/_config.json"
+      );
+      const tmpPath = this.context.asAbsolutePath("misc/to_remote/config.json");
       const content = await readFile(path, { encoding: "utf-8" });
-      let lines = content.split("\n");
-      let found = false;
 
-      lines.forEach((line, index) => {
-        if (line.indexOf("webrepl") !== -1) {
-          found = true;
-          if (status && line.startsWith("#")) {
-            lines[index] = line.replace("#", "");
-          } else if (!status && !line.startsWith("#")) {
-            lines[index] = "#".concat(line);
-          }
-        }
-      });
+      let newContent = JSON.parse(content);
+      console.log(newContent);
+      newContent.web_repl.enabled = status;
 
-      if (!found && status) {
-        lines = ["import webrepl", "webrepl.start()"];
-      }
-
-      await writeFile(tmpPath, lines.join("\n"));
+      await writeFile(tmpPath, JSON.stringify(newContent));
     } catch (error) {
       ConnectionUtil.message.showError(
         "can't change remote daemon status",
@@ -393,33 +444,20 @@ export class ConnectionUtil {
     }
   }
 
-  async changeRemoteWlanDaemonStatus(status: boolean) {
+  async changeRemoteWlanDaemonStatus(port: string, status: boolean) {
     try {
-      const path = this.context.asAbsolutePath("misc/_boot.py");
-      const tmpPath = this.context.asAbsolutePath("misc/boot.py");
+      const path = this.context.asAbsolutePath(
+        this.fetchRemoteConfigFile(port)
+          ? "misc/to_remote/config.json"
+          : "misc/_config.json"
+      );
+      const tmpPath = this.context.asAbsolutePath("misc/to_remote/config.json");
       const content = await readFile(path, { encoding: "utf-8" });
-      let lines = content.split("\n");
-      let found = false;
 
-      lines.forEach((line, index) => {
-        if (line.indexOf("connect") !== -1) {
-          found = true;
-          if (status && line.startsWith("#")) {
-            lines[index] = line.replace("#", "");
-          } else if (!status && !line.startsWith("#")) {
-            lines[index] = "#".concat(line);
-          }
-        }
-      });
+      let newContent = JSON.parse(content);
+      newContent.wlan.enabled = status;
 
-      if (!found && status) {
-        lines = lines.concat([
-          "import connect",
-          "connect.connect(connect.PASS, 3, False)",
-        ]);
-      }
-
-      await writeFile(tmpPath, lines.join("\n"));
+      await writeFile(tmpPath, JSON.stringify(newContent));
     } catch (error) {
       ConnectionUtil.message.showError(
         "can't change remote daemon status",
@@ -491,11 +529,12 @@ export class ConnectionUtil {
               return;
             }
 
-            await UI.confirmWebReplPassword(pwd);
-            this.replaceWebReplConfigStub(pwd);
+            UI.confirmWebReplPassword(pwd);
 
             const enable = await UI.enableWebReplDaemon();
-            this.changeRemoteWebReplDaemonStatus(enable);
+
+            await this.replaceWebReplConfig(pwd);
+            await this.changeRemoteWebReplDaemonStatus(selected, enable);
             this.syncAllBasicFilesWithRemote(selected);
             resolve();
           } catch (error) {
@@ -538,7 +577,7 @@ export class ConnectionUtil {
               "connect",
               selected,
               "run",
-              this.context.asAbsolutePath("misc/scan.py"),
+              this.context.asAbsolutePath("misc/_scan.py"),
             ])*/ [
                 "mpremote",
                 "connect",
@@ -569,7 +608,10 @@ export class ConnectionUtil {
               return;
             }
 
-            this.replaceConnectScriptStub(pickedAP, pwd);
+            await this.replaceConnectConfig(selected, pickedAP, pwd);
+            this.pushRemoteConfigFile(selected);
+            progress.report({ message: "Syncing files ..." });
+            await this.syncAllBasicFilesWithRemote(selected);
 
             progress.report({ message: "Try connecting ..." });
             await ConnectionUtil.exec(
@@ -578,7 +620,7 @@ export class ConnectionUtil {
                 "connect",
                 selected,
                 "run",
-                this.context.asAbsolutePath("misc/connect.py"),
+                this.context.asAbsolutePath("misc/to_remote/connect.py"),
               ].join(" ")
             );
 
@@ -599,9 +641,9 @@ export class ConnectionUtil {
               }
 
               const enable = await UI.enableWLANDaemon();
-              this.changeRemoteWlanDaemonStatus(enable);
+              await this.changeRemoteWlanDaemonStatus(selected, enable);
               progress.report({ message: "Syncing files ..." });
-              this.syncAllBasicFilesWithRemote(selected);
+              await this.syncAllBasicFilesWithRemote(selected);
               resolve();
             }, 5000);
           } catch (error) {
