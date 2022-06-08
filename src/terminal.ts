@@ -45,24 +45,28 @@ export class EmpTerminal implements vscode.Pseudoterminal {
 		this.device.detachTerminal(this);
 	}
 
-    overTake(handle: ChildProcess): void {
+    overTake(handle: ChildProcess, showOutput?: boolean): void {
         this.usingMpremote = true; 
         this.mpremoteHandle = handle;
-        handle.stdout?.on('data', (data) => {
-            this.writeEmitter.fire(data);
-        });
+        if (showOutput === undefined || showOutput === true) {
+            handle.stdout?.on('data', (data) => {
+                this.writeEmitter.fire(data);
+            });
+        }
     }
 
     serialOverTake() {
         this.usingMpremote = false;
     }
 
-    officialOverTake(handle: ChildProcess): void {
+    officialOverTake(handle: ChildProcess, showOutput?: boolean): void {
         this.usingOfficial = true;
         this.mpremoteHandle = handle;
-        handle.stdout?.on('data', (data) => {
-            this.writeEmitter.fire(data.toString().replace("\n", "\r\n"));
-        });
+        if (showOutput === undefined || showOutput === true) {
+            handle.stdout?.on('data', (data) => {
+                this.writeEmitter.fire(data.toString().replace("\n", "\r\n"));
+            });
+        }
     }
 
     selfMaintainedOverTake(): void {
@@ -169,12 +173,12 @@ export class TerminalWrapper {
     //     vscode.window.showInformationMessage("trying to open" + fileName);
     // }
 
-    static letMpremoteTakeOver(port: string, handle: ChildProcess) {
+    static letMpremoteTakeOver(port: string, handle: ChildProcess, showOutput?: boolean) {
         // let token = new DeviceId(DeviceType.serialDevice, port);
         let list = TerminalWrapper.idTerminalListMap.get(port);
         if (list) {
             for (let i of list) {
-                i.overTake(handle);
+                i.overTake(handle, showOutput);
             }
         }
     }
@@ -188,11 +192,11 @@ export class TerminalWrapper {
         }
     }
 
-    static letOfficialTakeOver(ip: string, handle: ChildProcess) {
+    static letOfficialTakeOver(ip: string, handle: ChildProcess, showOutput?: boolean) {
         let list = TerminalWrapper.idTerminalListMap.get(ip);
         if (list) {
             for (let i of list) {
-                i.officialOverTake(handle);
+                i.officialOverTake(handle, showOutput);
             }
         }
     }

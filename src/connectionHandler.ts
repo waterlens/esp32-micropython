@@ -119,7 +119,7 @@ export class SerialDevice implements EmpDevice {
 
         this.serialPort.on('close', () => {
             if (this.suspended) {
-                this.onTerminalData('\r\nStart Executing Local Script\r\n');
+                // this.onTerminalData('\r\nStart Executing Local Script\r\n');
             } else {
                 this.onTerminalData('\r\nConnection Expired\r\n');
             }
@@ -173,7 +173,7 @@ export class SerialDevice implements EmpDevice {
         });
         this.serialPort.on('close', () => {
             if (this.suspended) {
-                this.onTerminalData('\r\nStart Executing Local Script\r\n');
+                // this.onTerminalData('\r\nStart Executing Local Script\r\n');
             } else {
                 this.onTerminalData('\r\nConnection Expired\r\n');
             }
