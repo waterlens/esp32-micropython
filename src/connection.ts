@@ -381,7 +381,7 @@ export class ConnectionUtil {
     }
   }
 
-  async replaceConnectConfig(port: string, ap: string, pwd: string) {
+  async replaceConnectConfig(port: string, ap: string, pwd: string, static_ip: string) {
     try {
       const path = this.context.asAbsolutePath(
         this.fetchRemoteConfigFile(port)
@@ -394,6 +394,7 @@ export class ConnectionUtil {
       let newContent = JSON.parse(content);
       newContent.wlan.ssid = ap;
       newContent.wlan.password = pwd;
+        newContent.wlan.static_ip = static_ip;
 
       await writeFile(tmpPath, JSON.stringify(newContent));
     } catch (error) {
@@ -608,7 +609,14 @@ export class ConnectionUtil {
               return;
             }
 
-            await this.replaceConnectConfig(selected, pickedAP, pwd);
+            progress.report({ message: "Input the static ip address ..." });
+            const staticIp = await getIpAddr();
+            if (!staticIp) {
+              resolve();
+              return;
+            }
+
+            await this.replaceConnectConfig(selected, pickedAP, pwd, staticIp);
             this.pushRemoteConfigFile(selected);
             progress.report({ message: "Syncing files ..." });
             await this.syncAllBasicFilesWithRemote(selected);
